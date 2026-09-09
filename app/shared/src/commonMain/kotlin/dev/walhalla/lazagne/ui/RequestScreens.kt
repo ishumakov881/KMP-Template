@@ -146,40 +146,45 @@ private fun RequestEditor(
     Scaffold(
         floatingToolbar = {
             FloatingToolbar {
-                TooltipBox(text = "Дополнительно") {
-                    IconButton(onClick = { showSheet = true }) {
-                        Icon(
-                            imageVector = MiuixIcons.Info,
-                            contentDescription = "Дополнительно",
-                            tint = MiuixTheme.colorScheme.onSurface,
-                        )
+                Row(
+                    modifier = Modifier.padding(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    TooltipBox(text = "Дополнительно") {
+                        IconButton(onClick = { showSheet = true }) {
+                            Icon(
+                                imageVector = MiuixIcons.Info,
+                                contentDescription = "Дополнительно",
+                                tint = MiuixTheme.colorScheme.onSurface,
+                            )
+                        }
                     }
-                }
-                TooltipBox(text = "Действия") {
-                    OverlayIconDropdownMenu(entry = actionEntry) {
-                        Icon(
-                            imageVector = MiuixIcons.Send,
-                            contentDescription = "Действия",
-                            tint = MiuixTheme.colorScheme.onSurface,
-                        )
+                    TooltipBox(text = "Действия") {
+                        OverlayIconDropdownMenu(entry = actionEntry) {
+                            Icon(
+                                imageVector = MiuixIcons.Send,
+                                contentDescription = "Действия",
+                                tint = MiuixTheme.colorScheme.onSurface,
+                            )
+                        }
                     }
-                }
-                TooltipBox(text = "Удалить") {
-                    IconButton(
-                        onClick = {
-                            scope.launch {
-                                snackbarHostState.showSnackbar(
-                                    message = "Заявка помечена к удалению",
-                                    actionLabel = "Отменить",
-                                )
-                            }
-                        },
-                    ) {
-                        Icon(
-                            imageVector = MiuixIcons.Delete,
-                            contentDescription = "Удалить",
-                            tint = MiuixTheme.colorScheme.onSurface,
-                        )
+                    TooltipBox(text = "Удалить") {
+                        IconButton(
+                            onClick = {
+                                scope.launch {
+                                    snackbarHostState.showSnackbar(
+                                        message = "Заявка помечена к удалению",
+                                        actionLabel = "Отменить",
+                                    )
+                                }
+                            },
+                        ) {
+                            Icon(
+                                imageVector = MiuixIcons.Delete,
+                                contentDescription = "Удалить",
+                                tint = MiuixTheme.colorScheme.onSurface,
+                            )
+                        }
                     }
                 }
             }
