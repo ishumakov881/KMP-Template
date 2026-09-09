@@ -218,7 +218,9 @@ fun CorporateShell(
                     TextButton(
                         text = "Закрыть",
                         onClick = { showRequestExtrasSheet = false },
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 16.dp),
                     )
                 }
             }
