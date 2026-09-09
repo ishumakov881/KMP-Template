@@ -1,5 +1,6 @@
 package dev.walhalla.lazagne.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,6 +23,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
@@ -147,10 +149,10 @@ private fun RequestEditor(
         floatingToolbar = {
             FloatingToolbar {
                 Row(
-                    modifier = Modifier.padding(8.dp),
+                    modifier = Modifier.background(Color.Red),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    TooltipBox(text = "Дополнительно") {
+                    TooltipBox(text = "Дополнительно...") {
                         IconButton(onClick = { showSheet = true }) {
                             Icon(
                                 imageVector = MiuixIcons.Info,
@@ -193,13 +195,13 @@ private fun RequestEditor(
     ) { padding ->
         Column(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
+                .fillMaxSize().background(Color.Yellow)
+                //.padding(padding)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            SmallTitle(text = titleHint)
+            SmallTitle(text = "@@@@$titleHint")
             Card {
                 TextField(
                     value = title,
@@ -376,21 +378,23 @@ private fun RequestEditor(
             }
         }
 
-        OverlayBottomSheet(
-            title = "Дополнительно",
-            show = showSheet,
-            onDismissRequest = { showSheet = false },
-        ) {
-            Text(
-                text = "Вложения и согласующие настраиваются после отправки.",
-                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                modifier = Modifier.padding(bottom = 12.dp),
-            )
-            TextButton(
-                text = "Закрыть",
-                onClick = { showSheet = false },
-                modifier = Modifier.fillMaxWidth(),
-            )
-        }
+
+    }//scaffold content end
+
+    OverlayBottomSheet(
+        title = "Дополнительно",
+        show = true,
+        onDismissRequest = { showSheet = false },
+    ) {
+        Text(
+            text = "Вложения и согласующие настраиваются после отправки.",
+            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+            modifier = Modifier.padding(bottom = 12.dp),
+        )
+        TextButton(
+            text = "Закрыть",
+            onClick = { showSheet = false },
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 }
