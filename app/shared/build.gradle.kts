@@ -37,7 +37,7 @@ kotlin {
        minSdk = libs.versions.android.minSdk.get().toInt()
     
        compilerOptions {
-           jvmTarget = JvmTarget.JVM_11
+           jvmTarget = JvmTarget.JVM_21
        }
        androidResources {
            enable = true
@@ -71,6 +71,8 @@ kotlin {
             implementation(libs.miuix.preference)
             implementation(libs.miuix.icons)
             implementation(libs.miuix.nav)
+            implementation(libs.coil.compose)
+            implementation(libs.coil.network.ktor3)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
