@@ -19,4 +19,5 @@ enum class MainSection(val title: String) {
     Desktop("Рабочий стол"),
     Requests("Заявки"),
     Archive("Архив"),
+    Lab("Лаборатория"),
 }

@@ -41,6 +41,7 @@ import top.yukonga.miuix.kmp.icon.extended.Add
 import top.yukonga.miuix.kmp.icon.extended.Back
 import top.yukonga.miuix.kmp.icon.extended.Folder
 import top.yukonga.miuix.kmp.icon.extended.Home
+import top.yukonga.miuix.kmp.icon.extended.Layers
 import top.yukonga.miuix.kmp.icon.extended.Notes
 import top.yukonga.miuix.kmp.icon.extended.Settings
 import top.yukonga.miuix.kmp.nav.core.NavDisplay
@@ -203,7 +204,7 @@ private fun MainNavigationBar(
     onSectionChange: (MainSection) -> Unit,
 ) {
     val sections = MainSection.entries
-    val icons = listOf(MiuixIcons.Home, MiuixIcons.Notes, MiuixIcons.Folder)
+    val icons = listOf(MiuixIcons.Home, MiuixIcons.Notes, MiuixIcons.Folder, MiuixIcons.Layers)
     NavigationBar {
         sections.forEachIndexed { index, item ->
             NavigationBarItem(
@@ -229,7 +230,7 @@ private fun MainNavigationRail(
     onSectionChange: (MainSection) -> Unit,
 ) {
     val sections = MainSection.entries
-    val icons = listOf(MiuixIcons.Home, MiuixIcons.Notes, MiuixIcons.Folder)
+    val icons = listOf(MiuixIcons.Home, MiuixIcons.Notes, MiuixIcons.Folder, MiuixIcons.Layers)
     NavigationRail {
         sections.forEachIndexed { index, item ->
             NavigationRailItem(
@@ -257,47 +258,53 @@ private fun MainWorkspace(
     onOpenRequest: (String) -> Unit,
     snackbarHostState: SnackbarHostState,
 ) {
-    val tabs = when (section) {
-        MainSection.Desktop -> listOf("Все", "Мои", "Команда")
-        MainSection.Requests -> listOf("Новая", "Черновики")
-        MainSection.Archive -> listOf("Закрытые", "Отклонённые")
-    }
-    val safeTab = tabIndex.coerceIn(0, tabs.lastIndex)
+    if (section == MainSection.Lab) {
+        LabScreen(snackbarHostState = snackbarHostState)
+    } else {
+        val tabs = when (section) {
+            MainSection.Desktop -> listOf("Все", "Мои", "Команда")
+            MainSection.Requests -> listOf("Новая", "Черновики")
+            MainSection.Archive -> listOf("Закрытые", "Отклонённые")
+            MainSection.Lab -> emptyList()
+        }
+        val safeTab = tabIndex.coerceIn(0, tabs.lastIndex)
 
-    val crumbs = listOf(
-        BreadcrumbItem(path = "CorpDesk", text = "CorpDesk"),
-        BreadcrumbItem(path = section.name, text = section.title),
-        BreadcrumbItem(path = tabs[safeTab], text = tabs[safeTab]),
-    )
+        val crumbs = listOf(
+            BreadcrumbItem(path = "CorpDesk", text = "CorpDesk"),
+            BreadcrumbItem(path = section.name, text = section.title),
+            BreadcrumbItem(path = tabs[safeTab], text = tabs[safeTab]),
+        )
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        BreadcrumbBar(
-            items = crumbs,
-            onItemClick = {},
-            modifier = Modifier.fillMaxWidth(),
-        )
-        TabRow(
-            tabs = tabs,
-            selectedTabIndex = safeTab,
-            onTabSelected = onTabIndexChange,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-        )
-        when (section) {
-            MainSection.Desktop -> DesktopScreen(
-                tabLabel = tabs[safeTab],
-                onOpenRequest = onOpenRequest,
-                snackbarHostState = snackbarHostState,
+        Column(modifier = Modifier.fillMaxSize()) {
+            BreadcrumbBar(
+                items = crumbs,
+                onItemClick = {},
+                modifier = Modifier.fillMaxWidth(),
             )
-            MainSection.Requests -> RequestFormScreen(
-                tabLabel = tabs[safeTab],
-                snackbarHostState = snackbarHostState,
+            TabRow(
+                tabs = tabs,
+                selectedTabIndex = safeTab,
+                onTabSelected = onTabIndexChange,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
             )
-            MainSection.Archive -> ArchiveScreen(
-                tabLabel = tabs[safeTab],
-                onOpenRequest = onOpenRequest,
-            )
+            when (section) {
+                MainSection.Desktop -> DesktopScreen(
+                    tabLabel = tabs[safeTab],
+                    onOpenRequest = onOpenRequest,
+                    snackbarHostState = snackbarHostState,
+                )
+                MainSection.Requests -> RequestFormScreen(
+                    tabLabel = tabs[safeTab],
+                    snackbarHostState = snackbarHostState,
+                )
+                MainSection.Archive -> ArchiveScreen(
+                    tabLabel = tabs[safeTab],
+                    onOpenRequest = onOpenRequest,
+                )
+                MainSection.Lab -> Unit
+            }
         }
     }
 }
