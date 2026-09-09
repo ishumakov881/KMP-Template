@@ -1,6 +1,5 @@
 package dev.walhalla.lazagne.ui
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,7 +22,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
@@ -54,7 +52,6 @@ import top.yukonga.miuix.kmp.icon.extended.Info
 import top.yukonga.miuix.kmp.icon.extended.Send
 import top.yukonga.miuix.kmp.menu.OverlayDropdownMenu
 import top.yukonga.miuix.kmp.menu.OverlayIconDropdownMenu
-import top.yukonga.miuix.kmp.overlay.OverlayBottomSheet
 import top.yukonga.miuix.kmp.overlay.OverlayDialog
 import top.yukonga.miuix.kmp.overlay.OverlayListPopup
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -63,10 +60,12 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 fun RequestFormScreen(
     tabLabel: String,
     snackbarHostState: SnackbarHostState,
+    onOpenExtras: () -> Unit,
 ) {
     RequestEditor(
         titleHint = if (tabLabel == "Черновики") "Черновик заявки" else "Новая заявка",
         snackbarHostState = snackbarHostState,
+        onOpenExtras = onOpenExtras,
         onSaved = {
             // stays on form; snackbar confirms
         },
@@ -77,6 +76,7 @@ fun RequestFormScreen(
 fun RequestDetailScreen(
     requestId: String,
     snackbarHostState: SnackbarHostState,
+    onOpenExtras: () -> Unit,
     onSaved: () -> Unit,
 ) {
     RequestEditor(
@@ -87,6 +87,7 @@ fun RequestDetailScreen(
             else -> "Заявка $requestId"
         },
         snackbarHostState = snackbarHostState,
+        onOpenExtras = onOpenExtras,
         onSaved = onSaved,
     )
 }
@@ -95,6 +96,7 @@ fun RequestDetailScreen(
 private fun RequestEditor(
     titleHint: String,
     snackbarHostState: SnackbarHostState,
+    onOpenExtras: () -> Unit,
     onSaved: () -> Unit,
     initialTitle: String = "",
 ) {
@@ -107,7 +109,6 @@ private fun RequestEditor(
     var days by remember { mutableIntStateOf(3) }
     var department by remember { mutableStateOf("ИТ") }
     var showConfirm by remember { mutableStateOf(false) }
-    var showSheet by remember { mutableStateOf(false) }
     var showDeptPopup by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val departments = listOf("ИТ", "HR", "Финансы", "Хозяйство")
@@ -149,11 +150,11 @@ private fun RequestEditor(
         floatingToolbar = {
             FloatingToolbar {
                 Row(
-                    modifier = Modifier.background(Color.Red),
+                    modifier = Modifier.padding(horizontal = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     TooltipBox(text = "Дополнительно...") {
-                        IconButton(onClick = { showSheet = true }) {
+                        IconButton(onClick = onOpenExtras) {
                             Icon(
                                 imageVector = MiuixIcons.Info,
                                 contentDescription = "Дополнительно",
@@ -195,13 +196,13 @@ private fun RequestEditor(
     ) { padding ->
         Column(
             modifier = Modifier
-                .fillMaxSize().background(Color.Yellow)
-                //.padding(padding)
+                .fillMaxSize()
+                .padding(padding)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            SmallTitle(text = "@@@@$titleHint")
+            SmallTitle(text = titleHint)
             Card {
                 TextField(
                     value = title,
@@ -379,22 +380,5 @@ private fun RequestEditor(
         }
 
 
-    }//scaffold content end
-
-    OverlayBottomSheet(
-        title = "Дополнительно",
-        show = true,
-        onDismissRequest = { showSheet = false },
-    ) {
-        Text(
-            text = "Вложения и согласующие настраиваются после отправки.",
-            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-            modifier = Modifier.padding(bottom = 12.dp),
-        )
-        TextButton(
-            text = "Закрыть",
-            onClick = { showSheet = false },
-            modifier = Modifier.fillMaxWidth(),
-        )
     }
 }

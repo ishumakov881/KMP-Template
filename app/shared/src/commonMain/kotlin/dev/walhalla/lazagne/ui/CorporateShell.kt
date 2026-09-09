@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -34,6 +35,7 @@ import top.yukonga.miuix.kmp.basic.SnackbarHost
 import top.yukonga.miuix.kmp.basic.SnackbarHostState
 import top.yukonga.miuix.kmp.basic.TabRow
 import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.basic.TooltipBox
 import top.yukonga.miuix.kmp.basic.TopAppBar
 import top.yukonga.miuix.kmp.icon.MiuixIcons
@@ -46,6 +48,7 @@ import top.yukonga.miuix.kmp.icon.extended.Notes
 import top.yukonga.miuix.kmp.icon.extended.Settings
 import top.yukonga.miuix.kmp.nav.core.NavDisplay
 import top.yukonga.miuix.kmp.nav.core.rememberNavBackStack
+import top.yukonga.miuix.kmp.overlay.OverlayBottomSheet
 import top.yukonga.miuix.kmp.theme.ColorSchemeMode
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
@@ -63,6 +66,7 @@ fun CorporateShell(
     val scope = rememberCoroutineScope()
     var section by remember { mutableStateOf(MainSection.Desktop) }
     var tabIndex by remember { mutableIntStateOf(0) }
+    var showRequestExtrasSheet by remember { mutableStateOf(false) }
 
     val current = (backStack.lastOrNull() as? AppRoute) ?: AppRoute.Main
     val isMain = current is AppRoute.Main
@@ -166,6 +170,7 @@ fun CorporateShell(
                             tabIndex = tabIndex,
                             onTabIndexChange = { tabIndex = it },
                             onOpenRequest = { id -> backStack.add(AppRoute.RequestDetail(id)) },
+                            onOpenRequestExtras = { showRequestExtrasSheet = true },
                             snackbarHostState = snackbarHostState,
                         )
                     }
@@ -173,6 +178,7 @@ fun CorporateShell(
                         RequestDetailScreen(
                             requestId = route.id,
                             snackbarHostState = snackbarHostState,
+                            onOpenExtras = { showRequestExtrasSheet = true },
                             onSaved = {
                                 scope.launch {
                                     snackbarHostState.showSnackbar(
@@ -192,6 +198,28 @@ fun CorporateShell(
                             onKeyColorChange = onKeyColorChange,
                         )
                     }
+                }
+            }
+
+            // Root Scaffold popup host: bottom insets apply correctly here
+            OverlayBottomSheet(
+                title = "Дополнительно",
+                show = showRequestExtrasSheet,
+                onDismissRequest = { showRequestExtrasSheet = false },
+                renderInRootScaffold = true,
+                defaultWindowInsetsPadding = true,
+            ) {
+                Column(modifier = Modifier.navigationBarsPadding()) {
+                    Text(
+                        text = "Вложения и согласующие настраиваются после отправки.",
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                        modifier = Modifier.padding(bottom = 12.dp),
+                    )
+                    TextButton(
+                        text = "Закрыть",
+                        onClick = { showRequestExtrasSheet = false },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                 }
             }
         }
@@ -256,6 +284,7 @@ private fun MainWorkspace(
     tabIndex: Int,
     onTabIndexChange: (Int) -> Unit,
     onOpenRequest: (String) -> Unit,
+    onOpenRequestExtras: () -> Unit,
     snackbarHostState: SnackbarHostState,
 ) {
     if (section == MainSection.Lab) {
@@ -298,6 +327,7 @@ private fun MainWorkspace(
                 MainSection.Requests -> RequestFormScreen(
                     tabLabel = tabs[safeTab],
                     snackbarHostState = snackbarHostState,
+                    onOpenExtras = onOpenRequestExtras,
                 )
                 MainSection.Archive -> ArchiveScreen(
                     tabLabel = tabs[safeTab],
