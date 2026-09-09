@@ -6,6 +6,7 @@ plugins {
     alias(libs.plugins.androidMultiplatformLibrary)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
+    alias(libs.plugins.kotlinSerialization)
 }
 
 kotlin {
@@ -60,12 +61,16 @@ kotlin {
             api(project(":core"))
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
-            implementation(libs.compose.material3)
             implementation(libs.compose.ui)
             implementation(libs.compose.components.resources)
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
+            implementation(libs.kotlinx.serialization.core)
+            implementation(libs.miuix.ui)
+            implementation(libs.miuix.preference)
+            implementation(libs.miuix.icons)
+            implementation(libs.miuix.nav)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
