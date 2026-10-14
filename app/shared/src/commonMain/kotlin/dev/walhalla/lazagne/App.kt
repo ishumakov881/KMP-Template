@@ -1,45 +1,42 @@
 package dev.walhalla.lazagne
 
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import dev.walhalla.lazagne.ui.CorporateShell
-import top.yukonga.miuix.kmp.theme.ColorSchemeMode
-import top.yukonga.miuix.kmp.theme.MiuixTheme
-import top.yukonga.miuix.kmp.theme.ThemeController
+import dev.walhalla.lazagne.ui.ThemeMode
+import dev.walhalla.lazagne.ui.ThemePrefs
+import dev.walhalla.lazagne.ui.ThemeSettings
+import io.github.composefluent.ExperimentalFluentApi
+import io.github.composefluent.FluentTheme
+import io.github.composefluent.darkColors
+import io.github.composefluent.lightColors
 
-private const val DefaultKeyColor = 0xFF3482FFL
-
+@OptIn(ExperimentalFluentApi::class)
 @Composable
 @Preview
-fun App() {
-    var modeName by rememberSaveable { mutableStateOf(ColorSchemeMode.System.name) }
-    var keyColorArgb by rememberSaveable { mutableLongStateOf(DefaultKeyColor) }
-
-    val mode = remember(modeName) {
-        runCatching { ColorSchemeMode.valueOf(modeName) }.getOrDefault(ColorSchemeMode.System)
+fun App(themeSettings: ThemeSettings? = null) {
+    var sessionPrefs by remember { mutableStateOf(ThemePrefs()) }
+    val prefs = themeSettings?.prefs ?: sessionPrefs
+    val isDark = when (prefs.mode) {
+        ThemeMode.System -> isSystemInDarkTheme()
+        ThemeMode.Light -> false
+        ThemeMode.Dark -> true
     }
-    val keyColor = Color(keyColorArgb)
-    val controller = remember(mode, keyColorArgb) {
-        ThemeController(
-            colorSchemeMode = mode,
-            keyColor = keyColor,
-        )
+    val colors = remember(isDark, prefs.accent) {
+        if (isDark) darkColors(prefs.accent) else lightColors(prefs.accent)
     }
 
-    MiuixTheme(controller = controller) {
+    FluentTheme(colors = colors, compactMode = false) {
         CorporateShell(
-            themeMode = mode,
-            keyColor = keyColor,
-            onThemeModeChange = { modeName = it.name },
-            onKeyColorChange = { color ->
-                keyColorArgb = color.value.toLong() and 0xFFFFFFFFL
+            themePrefs = prefs,
+            isDark = isDark,
+            onThemePrefsChange = { transform ->
+                if (themeSettings != null) themeSettings.update(transform) else sessionPrefs = transform(sessionPrefs)
             },
         )
     }

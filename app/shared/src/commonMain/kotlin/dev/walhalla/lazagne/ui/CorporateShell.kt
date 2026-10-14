@@ -1,342 +1,238 @@
 package dev.walhalla.lazagne.ui
 
-import androidx.compose.foundation.layout.Box
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import androidx.navigationevent.NavigationEventInfo
+import androidx.navigationevent.compose.NavigationBackHandler
+import androidx.navigationevent.compose.rememberNavigationEventState
+import io.github.composefluent.background.Mica
+import io.github.composefluent.component.Badge
+import io.github.composefluent.component.BadgeStatus
+import io.github.composefluent.component.BreadcrumbBar
+import io.github.composefluent.component.BreadcrumbBarItem
+import io.github.composefluent.component.Icon
+import io.github.composefluent.component.InfoBar
+import io.github.composefluent.component.InfoBarDefaults
+import io.github.composefluent.component.InfoBarSeverity
+import io.github.composefluent.component.NavigationDisplayMode
+import io.github.composefluent.component.NavigationView
+import io.github.composefluent.component.Text
+import io.github.composefluent.component.menuItem
+import io.github.composefluent.icons.Icons
+import io.github.composefluent.icons.regular.Document
+import io.github.composefluent.icons.regular.Home
+import io.github.composefluent.icons.regular.Person
+import io.github.composefluent.icons.regular.Settings
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import top.yukonga.miuix.kmp.basic.Badge
-import top.yukonga.miuix.kmp.basic.BreadcrumbBar
-import top.yukonga.miuix.kmp.basic.BreadcrumbItem
-import top.yukonga.miuix.kmp.basic.FabPosition
-import top.yukonga.miuix.kmp.basic.FloatingActionButton
-import top.yukonga.miuix.kmp.basic.Icon
-import top.yukonga.miuix.kmp.basic.IconButton
-import top.yukonga.miuix.kmp.basic.NavigationBar
-import top.yukonga.miuix.kmp.basic.NavigationBarItem
-import top.yukonga.miuix.kmp.basic.NavigationRail
-import top.yukonga.miuix.kmp.basic.NavigationRailItem
-import top.yukonga.miuix.kmp.basic.Scaffold
-import top.yukonga.miuix.kmp.basic.SnackbarHost
-import top.yukonga.miuix.kmp.basic.SnackbarHostState
-import top.yukonga.miuix.kmp.basic.TabRow
-import top.yukonga.miuix.kmp.basic.Text
-import top.yukonga.miuix.kmp.basic.TextButton
-import top.yukonga.miuix.kmp.basic.TooltipBox
-import top.yukonga.miuix.kmp.basic.TopAppBar
-import top.yukonga.miuix.kmp.icon.MiuixIcons
-import top.yukonga.miuix.kmp.icon.extended.Add
-import top.yukonga.miuix.kmp.icon.extended.Back
-import top.yukonga.miuix.kmp.icon.extended.Folder
-import top.yukonga.miuix.kmp.icon.extended.Home
-import top.yukonga.miuix.kmp.icon.extended.Layers
-import top.yukonga.miuix.kmp.icon.extended.Notes
-import top.yukonga.miuix.kmp.icon.extended.Settings
-import top.yukonga.miuix.kmp.nav.core.NavDisplay
-import top.yukonga.miuix.kmp.nav.core.rememberNavBackStack
-import top.yukonga.miuix.kmp.overlay.OverlayBottomSheet
-import top.yukonga.miuix.kmp.theme.ColorSchemeMode
-import top.yukonga.miuix.kmp.theme.MiuixTheme
 
-private val WideBreakpoint = 840.dp
+const val AppName = "Walhalla Corp"
+
+enum class MainTab(val title: String, val icon: ImageVector) {
+    Desktop("Рабочий стол", Icons.Regular.Home),
+    Requests("Заявки", Icons.Regular.Document),
+    Profile("Профиль", Icons.Regular.Person),
+}
+
+sealed interface Overlay {
+    data class RequestForm(val request: CorpRequest?, val type: RequestType) : Overlay
+    data object Settings : Overlay
+}
+
+@Stable
+class RequestsState {
+    var folder by mutableStateOf(RequestFolder.Inbox)
+    var query by mutableStateOf("")
+    var refreshing by mutableStateOf(false)
+        private set
+    var items by mutableStateOf(DemoData.requests())
+        private set
+    private var seed = 0
+
+    fun refresh(scope: CoroutineScope) {
+        if (refreshing) return
+        scope.launch {
+            refreshing = true
+            delay(1200)
+            items = DemoData.requests(++seed)
+            refreshing = false
+        }
+    }
+}
 
 @Composable
 fun CorporateShell(
-    themeMode: ColorSchemeMode,
-    keyColor: Color,
-    onThemeModeChange: (ColorSchemeMode) -> Unit,
-    onKeyColorChange: (Color) -> Unit,
+    themePrefs: ThemePrefs,
+    isDark: Boolean,
+    onThemePrefsChange: ((ThemePrefs) -> ThemePrefs) -> Unit,
 ) {
-    val backStack = rememberNavBackStack<AppRoute>(AppRoute.Main)
-    val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
-    var section by remember { mutableStateOf(MainSection.Desktop) }
-    var tabIndex by remember { mutableIntStateOf(0) }
-    var showRequestExtrasSheet by remember { mutableStateOf(false) }
+    var tab by rememberSaveable { mutableStateOf(MainTab.Desktop) }
+    var stack by remember { mutableStateOf(listOf<Overlay>()) }
+    var desktopLoaded by rememberSaveable { mutableStateOf(false) }
+    var notice by remember { mutableStateOf<String?>(null) }
+    val requestsState = remember { RequestsState() }
 
-    val current = (backStack.lastOrNull() as? AppRoute) ?: AppRoute.Main
-    val isMain = current is AppRoute.Main
+    val top = stack.lastOrNull()
+    val push: (Overlay) -> Unit = { if (stack.lastOrNull() != it) stack = stack + it }
+    val pop: () -> Unit = { stack = stack.dropLast(1) }
+    val pending = requestsState.items.count { it.status == RequestStatus.Pending }
 
-    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val useRail = maxWidth >= WideBreakpoint
+    LaunchedEffect(notice) {
+        if (notice != null) {
+            delay(3000)
+            notice = null
+        }
+    }
 
-        Scaffold(
-            topBar = {
-                TopAppBar(
-                    title = when (current) {
-                        is AppRoute.Settings -> "Настройки"
-                        is AppRoute.RequestDetail -> "Заявка ${current.id}"
-                        AppRoute.Main -> "CorpDesk"
-                    },
-                    navigationIcon = {
-                        if (!isMain) {
-                            IconButton(onClick = { backStack.removeLastOrNull() }) {
-                                Icon(
-                                    imageVector = MiuixIcons.Back,
-                                    contentDescription = "Назад",
-                                    tint = MiuixTheme.colorScheme.onBackground,
-                                )
-                            }
-                        }
-                    },
-                    actions = {
-                        if (isMain) {
-                            TooltipBox(text = "Настройки") {
-                                IconButton(onClick = { backStack.add(AppRoute.Settings) }) {
-                                    Icon(
-                                        imageVector = MiuixIcons.Settings,
-                                        contentDescription = "Настройки",
-                                        tint = MiuixTheme.colorScheme.onBackground,
-                                    )
-                                }
-                            }
-                        }
-                    },
-                )
-            },
-            bottomBar = {
-                if (isMain && !useRail) {
-                    MainNavigationBar(
-                        section = section,
-                        onSectionChange = {
-                            section = it
-                            tabIndex = 0
-                        },
-                    )
-                }
-            },
-            floatingActionButton = {
-                if (isMain && section == MainSection.Desktop) {
-                    FloatingActionButton(
-                        onClick = {
-                            section = MainSection.Requests
-                            tabIndex = 0
-                            scope.launch {
-                                snackbarHostState.showSnackbar(
-                                    message = "Создайте заявку во вкладке «Новая»",
-                                    actionLabel = "Ок",
-                                )
-                            }
-                        },
-                    ) {
-                        Icon(
-                            imageVector = MiuixIcons.Add,
-                            contentDescription = "Новая заявка",
-                            tint = MiuixTheme.colorScheme.onPrimary,
-                        )
-                    }
-                }
-            },
-            floatingActionButtonPosition = FabPosition.End,
-            snackbarHost = { SnackbarHost(state = snackbarHostState) },
-        ) { paddingValues ->
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues),
-            ) {
-                if (isMain && useRail) {
-                    MainNavigationRail(
-                        section = section,
-                        onSectionChange = {
-                            section = it
-                            tabIndex = 0
-                        },
-                    )
-                }
+    NavigationBackHandler(
+        state = rememberNavigationEventState(NavigationEventInfo.None),
+        isBackEnabled = stack.isNotEmpty(),
+        onBackCompleted = pop,
+    )
 
-                NavDisplay(
-                    backStack = backStack,
-                    onBack = { backStack.removeLastOrNull() },
-                    modifier = Modifier.fillMaxSize(),
-                ) {
-                    entry<AppRoute.Main> {
-                        MainWorkspace(
-                            section = section,
-                            tabIndex = tabIndex,
-                            onTabIndexChange = { tabIndex = it },
-                            onOpenRequest = { id -> backStack.add(AppRoute.RequestDetail(id)) },
-                            onOpenRequestExtras = { showRequestExtrasSheet = true },
-                            snackbarHostState = snackbarHostState,
-                        )
-                    }
-                    entry<AppRoute.RequestDetail> { route ->
-                        RequestDetailScreen(
-                            requestId = route.id,
-                            snackbarHostState = snackbarHostState,
-                            onOpenExtras = { showRequestExtrasSheet = true },
-                            onSaved = {
-                                scope.launch {
-                                    snackbarHostState.showSnackbar(
-                                        message = "Заявка ${route.id} сохранена",
-                                        actionLabel = "Отменить",
-                                    )
-                                }
-                                backStack.removeLastOrNull()
+    val crumbs = listOf(AppName, tab.title) + stack.map { overlayTitle(it) }
+
+    Mica(Modifier.fillMaxSize()) {
+        BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
+            NavigationView(
+                displayMode = if (maxWidth >= 600.dp) NavigationDisplayMode.LeftCompact else NavigationDisplayMode.Top,
+                title = { Text(AppName) },
+                menuItems = {
+                    MainTab.entries.forEach { item ->
+                        menuItem(
+                            key = item,
+                            selected = item == tab && top != Overlay.Settings,
+                            onClick = {
+                                tab = item
+                                stack = emptyList()
+                            },
+                            text = { Text(item.title) },
+                            icon = { Icon(item.icon, contentDescription = null) },
+                            badge = if (item == MainTab.Requests && pending > 0) {
+                                { Badge(status = BadgeStatus.Attention) { Text("$pending") } }
+                            } else {
+                                null
                             },
                         )
                     }
-                    entry<AppRoute.Settings> {
-                        SettingsScreen(
-                            themeMode = themeMode,
-                            keyColor = keyColor,
-                            onThemeModeChange = onThemeModeChange,
-                            onKeyColorChange = onKeyColorChange,
+                },
+                footerItems = {
+                    menuItem(
+                        selected = top == Overlay.Settings,
+                        onClick = { push(Overlay.Settings) },
+                        text = { Text("Настройки") },
+                        icon = { Icon(Icons.Regular.Settings, contentDescription = "Настройки") },
+                    )
+                },
+            ) {
+                Column(Modifier.fillMaxSize()) {
+                    BreadcrumbBar(modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp)) {
+                        items(crumbs.size) { index ->
+                            BreadcrumbBarItem(
+                                onClick = {
+                                    when (index) {
+                                        0 -> {
+                                            tab = MainTab.Desktop
+                                            stack = emptyList()
+                                        }
+                                        else -> stack = stack.take(index - 1)
+                                    }
+                                },
+                                chevronVisible = index < crumbs.lastIndex,
+                            ) { Text(crumbs[index], maxLines = 1) }
+                        }
+                    }
+                    notice?.let { message ->
+                        InfoBar(
+                            title = { Text("Готово") },
+                            message = { Text(message) },
+                            severity = InfoBarSeverity.Success,
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                            closeAction = { InfoBarDefaults.CloseActionButton(onClick = { notice = null }) },
                         )
                     }
+                    AnimatedContent(
+                        targetState = top ?: tab,
+                        transitionSpec = { fadeIn() togetherWith fadeOut() },
+                        modifier = Modifier.weight(1f),
+                    ) { target ->
+                        when (target) {
+                            MainTab.Desktop -> DesktopScreen(
+                                loaded = desktopLoaded,
+                                onLoaded = { desktopLoaded = true },
+                                recent = requestsState.items.take(3),
+                                onOpenType = { push(Overlay.RequestForm(null, it)) },
+                                onOpenRequest = { push(Overlay.RequestForm(it, it.type)) },
+                            )
+
+                            MainTab.Requests -> RequestsScreen(
+                                state = requestsState,
+                                onOpenRequest = { push(Overlay.RequestForm(it, it.type)) },
+                                onCreate = { push(Overlay.RequestForm(null, RequestType.Vacation)) },
+                            )
+
+                            MainTab.Profile -> ProfileScreen(onNotice = { notice = it })
+
+                            is Overlay.RequestForm -> RequestFormScreen(
+                                request = target.request,
+                                initialType = target.type,
+                                onDone = { message ->
+                                    pop()
+                                    notice = message
+                                },
+                            )
+
+                            Overlay.Settings -> SettingsScreen(
+                                themePrefs = themePrefs,
+                                isDark = isDark,
+                                onThemePrefsChange = onThemePrefsChange,
+                            )
+                        }
+                    }
                 }
             }
-
-            // Root Scaffold popup host: bottom insets apply correctly here
-            OverlayBottomSheet(
-                title = "Дополнительно",
-                show = showRequestExtrasSheet,
-                onDismissRequest = { showRequestExtrasSheet = false },
-                renderInRootScaffold = true,
-                defaultWindowInsetsPadding = true,
-            ) {
-                Column(modifier = Modifier.navigationBarsPadding()) {
-                    Text(
-                        text = "Вложения и согласующие настраиваются после отправки.",
-                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                        modifier = Modifier.padding(bottom = 12.dp),
-                    )
-                    TextButton(
-                        text = "Закрыть",
-                        onClick = { showRequestExtrasSheet = false },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 16.dp),
-                    )
-                }
-            }
         }
     }
 }
 
-@Composable
-private fun MainNavigationBar(
-    section: MainSection,
-    onSectionChange: (MainSection) -> Unit,
-) {
-    val sections = MainSection.entries
-    val icons = listOf(MiuixIcons.Home, MiuixIcons.Notes, MiuixIcons.Folder, MiuixIcons.Layers)
-    NavigationBar {
-        sections.forEachIndexed { index, item ->
-            NavigationBarItem(
-                selected = section == item,
-                onClick = { onSectionChange(item) },
-                icon = icons[index],
-                label = item.title,
-                badge = if (item == MainSection.Requests) {
-                    {
-                        Badge { Text("3") }
-                    }
-                } else {
-                    null
-                },
-            )
-        }
-    }
+private fun overlayTitle(overlay: Overlay): String = when (overlay) {
+    is Overlay.RequestForm -> overlay.request?.let { "Заявка №${it.id}" } ?: "Новая заявка"
+    Overlay.Settings -> "Настройки"
 }
 
+/** Opaque themed background drawn before the list's content padding, so the previous screen never shows through. */
 @Composable
-private fun MainNavigationRail(
-    section: MainSection,
-    onSectionChange: (MainSection) -> Unit,
-) {
-    val sections = MainSection.entries
-    val icons = listOf(MiuixIcons.Home, MiuixIcons.Notes, MiuixIcons.Folder, MiuixIcons.Layers)
-    NavigationRail {
-        sections.forEachIndexed { index, item ->
-            NavigationRailItem(
-                selected = section == item,
-                onClick = { onSectionChange(item) },
-                icon = icons[index],
-                label = item.title,
-                badge = if (item == MainSection.Requests) {
-                    {
-                        Badge { Text("3") }
-                    }
-                } else {
-                    null
-                },
-            )
-        }
-    }
-}
-
-@Composable
-private fun MainWorkspace(
-    section: MainSection,
-    tabIndex: Int,
-    onTabIndexChange: (Int) -> Unit,
-    onOpenRequest: (String) -> Unit,
-    onOpenRequestExtras: () -> Unit,
-    snackbarHostState: SnackbarHostState,
-) {
-    if (section == MainSection.Lab) {
-        LabScreen(snackbarHostState = snackbarHostState)
-    } else {
-        val tabs = when (section) {
-            MainSection.Desktop -> listOf("Все", "Мои", "Команда")
-            MainSection.Requests -> listOf("Новая", "Черновики")
-            MainSection.Archive -> listOf("Закрытые", "Отклонённые")
-            MainSection.Lab -> emptyList()
-        }
-        val safeTab = tabIndex.coerceIn(0, tabs.lastIndex)
-
-        val crumbs = listOf(
-            BreadcrumbItem(path = "CorpDesk", text = "CorpDesk"),
-            BreadcrumbItem(path = section.name, text = section.title),
-            BreadcrumbItem(path = tabs[safeTab], text = tabs[safeTab]),
+fun ScreenList(content: LazyListScope.() -> Unit) {
+    Mica(Modifier.fillMaxSize()) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+            content = content,
         )
-
-        Column(modifier = Modifier.fillMaxSize()) {
-            BreadcrumbBar(
-                items = crumbs,
-                onItemClick = {},
-                modifier = Modifier.fillMaxWidth(),
-            )
-            TabRow(
-                tabs = tabs,
-                selectedTabIndex = safeTab,
-                onTabSelected = onTabIndexChange,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-            )
-            when (section) {
-                MainSection.Desktop -> DesktopScreen(
-                    tabLabel = tabs[safeTab],
-                    onOpenRequest = onOpenRequest,
-                    snackbarHostState = snackbarHostState,
-                )
-                MainSection.Requests -> RequestFormScreen(
-                    tabLabel = tabs[safeTab],
-                    snackbarHostState = snackbarHostState,
-                    onOpenExtras = onOpenRequestExtras,
-                )
-                MainSection.Archive -> ArchiveScreen(
-                    tabLabel = tabs[safeTab],
-                    onOpenRequest = onOpenRequest,
-                )
-                MainSection.Lab -> Unit
-            }
-        }
     }
 }
