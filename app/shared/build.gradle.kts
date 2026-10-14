@@ -67,10 +67,6 @@ kotlin {
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
             implementation(libs.kotlinx.serialization.core)
-            implementation(libs.miuix.ui)
-            implementation(libs.miuix.preference)
-            implementation(libs.miuix.icons)
-            implementation(libs.miuix.nav)
             implementation(libs.coil.compose)
             implementation(libs.coil.network.ktor3)
         }
