@@ -1,5 +1,7 @@
 package dev.walhalla.lazagne.ui
 
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -78,6 +80,7 @@ fun SettingsScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .background(MiuixTheme.colorScheme.surface)
             .verticalScroll(rememberScrollState())
             .padding(bottom = 24.dp),
     ) {
