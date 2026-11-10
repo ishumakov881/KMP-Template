@@ -12,7 +12,10 @@ import net.lds.online.network.nos.LeanMapMarker
 actual fun NosMapCanvas(
     markers: List<LeanMapMarker>,
     modifier: Modifier,
+    onMarkerClick: (LeanMapMarker) -> Unit,
 ) {
+    @Suppress("UNUSED_PARAMETER")
+    val unused = onMarkerClick
     Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         CupertinoText("Карта доступна на Android (${markers.size})")
     }

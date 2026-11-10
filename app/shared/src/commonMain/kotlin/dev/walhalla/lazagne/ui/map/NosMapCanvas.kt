@@ -11,4 +11,5 @@ import net.lds.online.network.nos.LeanMapMarker
 expect fun NosMapCanvas(
     markers: List<LeanMapMarker>,
     modifier: Modifier = Modifier,
+    onMarkerClick: (LeanMapMarker) -> Unit = {},
 )

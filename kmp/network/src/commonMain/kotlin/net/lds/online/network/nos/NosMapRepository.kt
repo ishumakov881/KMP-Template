@@ -53,6 +53,40 @@ class NosMapRepository(
         }
     }
 
+    /** Web `.ajax_ping` → `mode=ajaxping`. */
+    suspend fun ajaxPing(ip: String, pingType: String): String {
+        val response = client.submitForm(
+            url = NosEndpoints.AJAX_MAP,
+            formParameters = Parameters.build {
+                append("mode", "ajaxping")
+                append("ip", ip)
+                append("t", pingType)
+            },
+        )
+        val body = response.bodyAsText()
+        if (isLoginHtml(body)) {
+            throw ApiException.clientError(401, "Сессия истекла")
+        }
+        return formatAjaxPingResult(body)
+    }
+
+    /** Web `.maintenance_button` → `mode=maintenance`. */
+    suspend fun setMaintenance(id: String, enabled: Boolean, message: String = "") {
+        val response = client.submitForm(
+            url = NosEndpoints.AJAX_MAP,
+            formParameters = Parameters.build {
+                append("mode", "maintenance")
+                append("id", id)
+                append("state", if (enabled) "1" else "0")
+                append("message", message)
+            },
+        )
+        val body = response.bodyAsText()
+        if (isLoginHtml(body)) {
+            throw ApiException.clientError(401, "Сессия истекла")
+        }
+    }
+
     private fun parseLeanMarkers(body: String, type: String): List<LeanMapMarker> {
         val trimmed = body.trim()
         if (trimmed.isEmpty() || trimmed == "null") return emptyList()
@@ -69,6 +103,8 @@ class NosMapRepository(
             val obj = node as? JsonObject ?: return@mapNotNull null
             val lat = obj.coord("lat") ?: return@mapNotNull null
             val lng = obj.coord("lng") ?: return@mapNotNull null
+            val popup = parsePopupFields(obj.string("popupContent"))
+            val jsonIp = obj.string("ip")
             LeanMapMarker(
                 name = obj.string("name").orEmpty(),
                 lat = lat,
@@ -77,7 +113,36 @@ class NosMapRepository(
                 layer = obj.string("layer").orEmpty(),
                 icon = obj.string("icon"),
                 type = type,
+                ip = popup.ip ?: jsonIp,
+                pingType = popup.pingType,
+                siteId = popup.siteId,
+                siteLabel = popup.siteLabel,
+                place = popup.place ?: obj.string("plc"),
+                deviceModel = popup.deviceModel,
+                serial = popup.serial,
+                mac = popup.mac,
+                maintenanceId = popup.maintenanceId,
+                maintenanceActive = popup.maintenanceActive,
+                maintenanceText = popup.maintenanceText,
+                entityId = obj.string("id") ?: obj.int("id")?.toString(),
             )
+        }
+    }
+
+    private fun formatAjaxPingResult(body: String): String {
+        val trimmed = body.trim()
+        if (trimmed.isEmpty()) return "Пустой ответ"
+        return try {
+            when (val el = json.parseToJsonElement(trimmed)) {
+                is JsonPrimitive -> el.contentOrNull ?: trimmed
+                is JsonObject -> el["message"]?.let { (it as? JsonPrimitive)?.contentOrNull }
+                    ?: el.toString()
+                is JsonArray -> el.joinToString("\n") { item ->
+                    (item as? JsonPrimitive)?.contentOrNull ?: item.toString()
+                }
+            }
+        } catch (_: Exception) {
+            trimmed
         }
     }
 

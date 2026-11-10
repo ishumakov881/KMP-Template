@@ -261,6 +261,12 @@ fun CorporateShell(
                 MainTab.Map -> MapRoute(
                     mapRepository = mapRepository,
                     padding = padding,
+                    onOpenPic = { ip, titleHint ->
+                        push(Overlay.SwPicDetail(path = ip, titleHint = titleHint))
+                    },
+                    onOpenSite = { siteId, siteName ->
+                        push(Overlay.SwSiteDetail(siteId = siteId, siteName = siteName))
+                    },
                 )
 
                 MainTab.Switches -> SwitchesRoute(

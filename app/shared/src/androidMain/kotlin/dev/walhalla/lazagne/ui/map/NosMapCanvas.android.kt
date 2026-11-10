@@ -7,6 +7,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -43,10 +44,12 @@ private fun ensureOsmdroidConfig(context: Context) {
 actual fun NosMapCanvas(
     markers: List<LeanMapMarker>,
     modifier: Modifier,
+    onMarkerClick: (LeanMapMarker) -> Unit,
 ) {
     val context = LocalContext.current
     val iconCache = remember { MarkerIconCache(context.applicationContext) }
     var iconsVersion by remember { mutableIntStateOf(0) }
+    val onMarkerClickState = rememberUpdatedState(onMarkerClick)
 
     val mapView = remember {
         ensureOsmdroidConfig(context.applicationContext)
@@ -100,12 +103,18 @@ actual fun NosMapCanvas(
                     // Mutate so hit-testing / bounds stay per-marker friendly with shared bitmaps.
                     marker.icon = drawable.constantState?.newDrawable()?.mutate() ?: drawable
                 }
-                // Explicit for every type (sw/uzel/pon/wifi/…) — same InfoWindow path as web tap.
+                marker.relatedObject = item
+                // Web popup parity: open Compose sheet with ping/snmp/node — not bare InfoWindow.
                 marker.setOnMarkerClickListener { clicked, map ->
                     map.overlays
                         .filterIsInstance<Marker>()
-                        .forEach { if (it !== clicked) it.closeInfoWindow() }
-                    clicked.showInfoWindow()
+                        .forEach { it.closeInfoWindow() }
+                    val lean = clicked.relatedObject as? LeanMapMarker
+                    if (lean != null) {
+                        onMarkerClickState.value(lean)
+                    } else {
+                        clicked.showInfoWindow()
+                    }
                     true
                 }
                 view.overlays.add(marker)

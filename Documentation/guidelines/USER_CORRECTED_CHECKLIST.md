@@ -32,8 +32,9 @@
 
 ## A. Архитектура
 
-- [x] A1 — Payload маркеров lean: в списке точек для карты нет тяжёлого `popupContent` (HTML); parse в `NosMapRepository` с `ignoreUnknownKeys` → `LeanMapMarker` (name/lat/lng/state/layer/icon/type). Детали попапа по клику — позже.
-  Verify: `LeanMapMarker` / `NosMapRepository.parseLeanMarkers` не читают `popupContent` в модель; UI map state = list of `LeanMapMarker`.
+- [x] A1 — Payload маркеров lean: в UI-стейте нет сырого HTML `popupContent`; при parse HTML разбирается в поля `LeanMapMarker` (ip, pingType, siteId, place, model, maintenanceId, …) и отбрасывается.
+  Verify: `parsePopupFields` / `LeanMapMarker.ip` и др.; в `MapUiData.markers` нет строки HTML попапа.
+  Изм. 2026-11-10: «детали позже» → structured extract из popup HTML при markgen.
 - [x] A2 — Загрузка карты = **полный** набор markgen из веб `map_osm.js` (`NosMapRepository.DEFAULT_MAP_TYPES`: sw, uzel, pon_new, mft, wifi, usil, ktv_amp, line, mft_line). Список сверять с JS, не выкидывать PON/MFT «для удобства» без явной просьбы. Checkbox/bbox — дальше.
   Verify: `DEFAULT_MAP_TYPES` содержит все 9 type; `MapViewModel` → `markgenMany(DEFAULT_MAP_TYPES)`; легенда включает PON; `markgenTypesInLegend` покрывает эти type.
   Изм. 2026-11-10: subset без PON → полный паритет с `map_osm.js`.
@@ -68,8 +69,9 @@
   Изм. 2026-11-10: checkbox show/hide; панели снизу → TopStart (не кроют зум).
 - [x] U6 — Иконки маркеров на карте совпадают с легендой/markgen: `LeanMapMarker.resolvedIconUrl()` (`icon` с сервера, иначе catalog по `layer`) → osmdroid `Marker.icon` через `MarkerIconCache` (не дефолтный пин).
   Verify: свичи/узлы/wifi на карте цветными PNG с `nos.lds.online/images/map/...`, как в легенде; уникальные URL кэшируются.
-- [x] U7 — Клик по маркеру работает для **всех** типов (sw/uzel/pon/wifi/usil/amp…), не только узлов: InfoWindow с name + type/layer; явный `setOnMarkerClickListener` + `showInfoWindow`.
-  Verify: тап по свичу/wifi/PON открывает bubble так же, как по узлу; HTML `popupContent` пока не показываем (lean).
+- [x] U7 — Клик по маркеру (все типы sw/uzel/pon/wifi/…) открывает попап паритета вебу: поля IP/узел/место/модель; **Ping** (`ajaxping`); **Графики** → `/sw/pic/{ip}`; **Узел** → `/sw/{id}`; **SNMP** → браузер `/sw/snmp/{ip}`; **техработы** (`maintenance` + комментарий).
+  Verify: тап маркер → нижний `MapMarkerPopup`; Ping показывает диалог с ответом; Графики/Узел уходят в существующие overlay; техработы ставятся/снимаются.
+  Изм. 2026-11-10: было bare InfoWindow name/type → полный попап как веб.
 - [x] U8 — Блок **Обновление** как веб `#intval` / `#more_intval`: интервалы 10 секунд / 1 минута / 5 минут (default 5 мин = 300000); `setInterval` → `loadData(isRefreshing)`; UI `MapRefreshPanel` рядом с легендой.
   Verify: свернуть/развернуть «Обновление»; выбрать «10 секунд» — markgen перезапрашивается ~каждые 10с; после смены интервала таймер перезапускается; дефолт 5 минут.
 

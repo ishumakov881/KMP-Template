@@ -5,6 +5,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import net.lds.online.network.ApiException
 import net.lds.online.network.nos.LeanMapMarker
 import net.lds.online.network.nos.NosMapRepository
 import net.lds.online.network.nos.legend.MapLegendSnapshot
@@ -21,6 +22,12 @@ data class MapUiData(
     val visibleLayers: Set<String> = emptySet(),
     /** Web `#more_intval` — auto reload interval. */
     val refreshInterval: MapRefreshInterval = MapRefreshInterval.WebDefault,
+    /** Selected marker — web Leaflet popup (structured, not HTML). */
+    val selectedMarker: LeanMapMarker? = null,
+    val pingLoading: Boolean = false,
+    val pingResult: String? = null,
+    val actionError: String? = null,
+    val maintenancePromptVisible: Boolean = false,
 ) {
     val visibleMarkers: List<LeanMapMarker>
         get() = markers.filter { it.layer in visibleLayers }
@@ -36,6 +43,16 @@ sealed interface MapEvent : BaseEvent {
     data class ToggleLayer(val leafletLayer: String) : MapEvent
     data class ToggleGroup(val groupId: String, val enabled: Boolean) : MapEvent
     data class SetRefreshInterval(val interval: MapRefreshInterval) : MapEvent
+    data class SelectMarker(val marker: LeanMapMarker) : MapEvent
+    data object DismissPopup : MapEvent
+    data object PingSelected : MapEvent
+    data object DismissPingResult : MapEvent
+    data object DismissActionError : MapEvent
+    /** Web maintenance: enable asks for comment; disable confirms in UI then this event. */
+    data object RequestEnableMaintenance : MapEvent
+    data object DismissMaintenancePrompt : MapEvent
+    data class ConfirmEnableMaintenance(val message: String) : MapEvent
+    data object DisableMaintenance : MapEvent
 }
 
 class MapViewModel(
@@ -68,12 +85,16 @@ class MapViewModel(
             previousAll = previous?.allLegendLayers.orEmpty(),
             newAll = allLayers,
         )
+        val selected = previous?.selectedMarker?.let { prev ->
+            markers.firstOrNull { it.samePointAs(prev) }
+        }
         return MapUiData(
             markers = markers,
             loadedTypes = loaded,
             legend = legend,
             visibleLayers = visibleLayers,
             refreshInterval = previous?.refreshInterval ?: MapRefreshInterval.WebDefault,
+            selectedMarker = selected,
         )
     }
 
@@ -83,6 +104,34 @@ class MapViewModel(
             is MapEvent.ToggleLayer -> toggleLayer(event.leafletLayer)
             is MapEvent.ToggleGroup -> toggleGroup(event.groupId, event.enabled)
             is MapEvent.SetRefreshInterval -> setRefreshInterval(event.interval)
+            is MapEvent.SelectMarker -> updateData {
+                it.copy(
+                    selectedMarker = event.marker,
+                    pingResult = null,
+                    actionError = null,
+                    maintenancePromptVisible = false,
+                )
+            }
+            MapEvent.DismissPopup -> updateData {
+                it.copy(
+                    selectedMarker = null,
+                    pingResult = null,
+                    actionError = null,
+                    maintenancePromptVisible = false,
+                    pingLoading = false,
+                )
+            }
+            MapEvent.PingSelected -> pingSelected()
+            MapEvent.DismissPingResult -> updateData { it.copy(pingResult = null) }
+            MapEvent.DismissActionError -> updateData { it.copy(actionError = null) }
+            MapEvent.RequestEnableMaintenance -> updateData {
+                it.copy(maintenancePromptVisible = true)
+            }
+            MapEvent.DismissMaintenancePrompt -> updateData {
+                it.copy(maintenancePromptVisible = false)
+            }
+            is MapEvent.ConfirmEnableMaintenance -> setMaintenance(enabled = true, message = event.message)
+            MapEvent.DisableMaintenance -> setMaintenance(enabled = false, message = "")
         }
     }
 
@@ -106,6 +155,59 @@ class MapViewModel(
                 delay(interval.millis)
                 loadData(isRefreshing = true)
             }
+        }
+    }
+
+    private fun pingSelected() {
+        val marker = currentDataOrNull()?.selectedMarker ?: return
+        val ip = marker.ip ?: return
+        val t = marker.pingType ?: "s"
+        updateData { it.copy(pingLoading = true, actionError = null, pingResult = null) }
+        viewModelScope.launch {
+            runCatching { mapRepository.ajaxPing(ip, t) }
+                .onSuccess { result ->
+                    updateData { it.copy(pingLoading = false, pingResult = result) }
+                }
+                .onFailure { e ->
+                    updateData {
+                        it.copy(
+                            pingLoading = false,
+                            actionError = (e as? ApiException)?.getUserMessage()
+                                ?: e.message
+                                ?: "Ошибка ping",
+                        )
+                    }
+                }
+        }
+    }
+
+    private fun setMaintenance(enabled: Boolean, message: String) {
+        val marker = currentDataOrNull()?.selectedMarker ?: return
+        val id = marker.maintenanceId ?: return
+        updateData { it.copy(maintenancePromptVisible = false, actionError = null) }
+        viewModelScope.launch {
+            runCatching { mapRepository.setMaintenance(id, enabled, message) }
+                .onSuccess {
+                    updateData { data ->
+                        val updated = marker.copy(
+                            maintenanceActive = enabled,
+                            maintenanceText = message.takeIf { enabled && it.isNotBlank() },
+                        )
+                        data.copy(
+                            markers = data.markers.map { if (it.samePointAs(marker)) updated else it },
+                            selectedMarker = updated,
+                        )
+                    }
+                }
+                .onFailure { e ->
+                    updateData {
+                        it.copy(
+                            actionError = (e as? ApiException)?.getUserMessage()
+                                ?: e.message
+                                ?: "Ошибка техработ",
+                        )
+                    }
+                }
         }
     }
 
