@@ -6,18 +6,26 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
 import dev.walhalla.lazagne.ui.ScreenList
 import dev.walhalla.lazagne.ui.TitleWithSubtitle
 import io.github.alexzhirkevich.cupertino.CupertinoActivityIndicator
@@ -28,7 +36,7 @@ import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
 import io.github.alexzhirkevich.cupertino.icons.outlined.ServerRack
 import io.github.alexzhirkevich.cupertino.section.CupertinoLinkIcon
 import io.github.alexzhirkevich.cupertino.section.CupertinoSectionDefaults
-import io.github.alexzhirkevich.cupertino.section.link
+import io.github.alexzhirkevich.cupertino.section.items
 import io.github.alexzhirkevich.cupertino.section.section
 import io.github.alexzhirkevich.cupertino.section.sectionTitle
 import io.github.alexzhirkevich.cupertino.theme.CupertinoColors
@@ -36,6 +44,7 @@ import io.github.alexzhirkevich.cupertino.theme.CupertinoTheme
 import io.github.alexzhirkevich.cupertino.theme.systemGreen
 import io.github.alexzhirkevich.cupertino.theme.systemRed
 import net.lds.online.network.nos.NosSwRepository
+import net.lds.online.network.nos.SwDevice
 import net.lds.online.ui.base.BaseScreenLayout
 import net.lds.online.ui.base.UiState
 
@@ -91,37 +100,14 @@ fun SiteDetailScreen(
                             )
                         },
                     ) {
-                        devices.forEach { device ->
-                            link(
-                                key = "${device.ip}|${device.number}",
-                                onClick = { },
-                                icon = {
-                                    CupertinoLinkIcon(
-                                        imageVector = CupertinoIcons.Default.ServerRack,
-                                        containerColor = if (device.down) {
-                                            CupertinoColors.systemRed
-                                        } else {
-                                            CupertinoColors.systemGreen
-                                        },
-                                    )
-                                },
-                            ) {
-                                TitleWithSubtitle(
-                                    title = device.ip.ifBlank { "—" },
-                                    subtitle = buildString {
-                                        append("№${device.number}")
-                                        val body = device.subtitle
-                                        if (body.isNotBlank()) {
-                                            append(" · ")
-                                            append(body)
-                                        }
-                                        if (device.vlan.isNotBlank()) {
-                                            append(" · ")
-                                            append(device.vlan)
-                                        }
-                                    },
-                                )
-                            }
+                        items(
+                            items = devices,
+                            key = { "${it.ip}|${it.number}" },
+                        ) { device, itemPadding ->
+                            DeviceRow(
+                                device = device,
+                                modifier = Modifier.padding(itemPadding),
+                            )
                         }
                     }
                 }
@@ -129,6 +115,62 @@ fun SiteDetailScreen(
         }
     }
 }
+
+@Composable
+private fun DeviceRow(
+    device: SwDevice,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            CupertinoLinkIcon(
+                imageVector = CupertinoIcons.Default.ServerRack,
+                containerColor = if (device.down) {
+                    CupertinoColors.systemRed
+                } else {
+                    CupertinoColors.systemGreen
+                },
+            )
+            Spacer(Modifier.width(12.dp))
+            TitleWithSubtitle(
+                title = device.ip.ifBlank { "—" },
+                subtitle = buildString {
+                    append("№${device.number}")
+                    val body = device.subtitle
+                    if (body.isNotBlank()) {
+                        append(" · ")
+                        append(body)
+                    }
+                    if (device.vlan.isNotBlank()) {
+                        append(" · ")
+                        append(device.vlan)
+                    }
+                },
+            )
+        }
+        val mrtgUrl = device.mrtgUrl
+        if (mrtgUrl != null) {
+            // Web `nolegend.png` is ~647×182 — keep full frame, no top/bottom crop.
+            AsyncImage(
+                model = mrtgUrl,
+                contentDescription = "mrtg ${device.ip}",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(MrtgThumbAspectRatio)
+                    .clip(RoundedCornerShape(8.dp)),
+                contentScale = ContentScale.Fit,
+            )
+        }
+    }
+}
+
+/** Intrinsic size of NOS `/inc/other/rrd/{ip}/nolegend.png`. */
+private const val MrtgThumbAspectRatio = 647f / 182f
 
 @Composable
 private fun EmptyDevicesState() {

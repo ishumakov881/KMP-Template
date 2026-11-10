@@ -57,8 +57,10 @@
   Изм. 2026-11-10: добавлен tab «Узлы» (веб `#s_sw`); markgen-tab **Свичи** не удалять.
 - [x] U9 — Экран **Свичи** (оставить): список lean markgen `type=sw` (`NosMapRepository.markgen(TYPE_SW)`); фильтр сегментами Все/OK/DN/LD/NV по `layer_*`; поиск по имени/статусу; иконки как на карте (`resolvedIconUrl`); refresh в тулбаре (ArrowClockwise). Не заменяет веб-меню `/sw`.
   Verify: tab «Свичи» → список коммутаторов с карты; смена сегмента DN показывает только `layer_dn`; поиск сужает список; иконки зел/красн/жёлт/серые PNG; кнопка обновить в top bar; файлы `ui/switches/*` на месте.
-- [x] U10 — Экран **Узлы** = веб left menu `#s_sw`: список с `GET /sw` (`NosSwRepository.sites`); тап → деталь `GET /sw/{id}` (таблица устройств: IP/адрес/тип/место/vlan, down=`red`); поиск по имени; back из детали; refresh списка в тулбаре. Без хардкода имён узлов и без WebView.
-  Verify: tab «Узлы» → ~сотни имён вроде `pumba`/`yablochnaya44a` с `/sw/{id}`; открыть узел — список IP; красные строки = down; имена не зашиты в коде.
+- [x] U10 — Экран **Узлы** = веб left menu `#s_sw`: список с `GET /sw` (`NosSwRepository.sites`); тап → деталь `GET /sw/{id}` (таблица устройств: IP/адрес/тип/место/vlan, down=`red`, **mrtg** thumb как веб); поиск по имени; back из детали; refresh списка в тулбаре. Без хардкода имён узлов и без WebView.
+  Verify: tab «Узлы» → ~сотни имён вроде `pumba`/`yablochnaya44a` с `/sw/{id}`; открыть узел (напр. `/sw/89`) — список IP + PNG график `/inc/other/rrd/{ip}/nolegend.png` под строкой **целиком** (не обрезан сверху/снизу); красные = down; имена не зашиты в коде.
+  Изм. 2026-11-10: под каждым устройством mrtg-график как колонка веб-таблицы.
+  Изм. 2026-11-10: mrtg без crop — `aspectRatio(647/182)` + `ContentScale.Fit`, не фиксированная высота/`FillWidth`.
 - [x] U5 — Сворачиваемая легенда как веб `#legend`: иконка + подпись + count; **чекбоксы** вкл/выкл слои на карте (`visibleLayers` / `ToggleLayer` / `ToggleGroup`) без перезагрузки markgen; данные из OOP-каталога. Панели легенды/обновления — **TopStart**, не перекрывают zoom +/- снизу.
   Verify: `MapLegendPanel` + `CupertinoCheckBox`; снять «Свич доступен» → зелёные свичи пропадают; zoom кнопки снизу справа свободны; нет краша `clickable`/`CupertinoIndication`.
   Изм. 2026-11-10: checkbox show/hide; панели снизу → TopStart (не кроют зум).
@@ -76,8 +78,8 @@
 - [x] D2 — Легенда карты — статический OOP-каталог (`MapLegendItem` / `MapLegendGroup` / `NosMapLegendCatalog`, паритет веб) **плюс** авто-дополнение: неизвестные `layer` из markgen → `discoverUnknownLayers` (title/icon с маркера), в свою группу по `type` или в «Другие»; `snapshotFor` даёт counts. Не парсить `/osm`.
   Verify: `NosMapLegendCatalog.snapshotFor` / `discoverUnknownLayers`; известные слои из каталога; новый `layer_*` в ответе появляется в легенде без правки каталога; `MapViewModel` кладёт `legend` в `MapUiData`.
   Изм. 2026-11-10: было только static catalog → static + discovery из markgen.
-- [x] D3 — Узлы `/sw`: нет JSON-списка — `NosSwRepository` тянет HTML `GET /sw` и `GET /sw/{id}` (тот же CookieJar/сессия), парсит `#s_sw` → `SwSite`, таблицу → `SwDevice`/`SwSitePage`. Не хардкодить меню из HTML-снимка чата.
-  Verify: `NosSwRepository.sites` / `sitePage`; `NosEndpoints.SW`; парсеры `parseSwSites` / `parseSwSitePage`; UI `SitesViewModel` / `SiteDetailViewModel` только через репозиторий.
+- [x] D3 — Узлы `/sw`: нет JSON-списка — `NosSwRepository` тянет HTML `GET /sw` и `GET /sw/{id}` (тот же CookieJar/сессия), парсит `#s_sw` → `SwSite`, таблицу → `SwDevice`/`SwSitePage` (в т.ч. `mrtgUrl`/`picUrl` из img/`/sw/pic/{ip}`). Не хардкодить меню из HTML-снимка чата.
+  Verify: `NosSwRepository.sites` / `sitePage`; `NosEndpoints.SW`; парсеры `parseSwSites` / `parseSwSitePage`; `SwDevice.mrtgUrl` указывает на `.../inc/other/rrd/{ip}/nolegend.png`; UI только через репозиторий.
 
 ## X. Процесс
 

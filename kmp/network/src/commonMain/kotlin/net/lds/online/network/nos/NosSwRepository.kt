@@ -67,6 +67,10 @@ private fun parseDeviceRow(rowHtml: String, down: Boolean): SwDevice? {
     val vlan = plainText(cells[4]).replace('\n', ' ').trim()
     val switchType = plainText(cells.getOrNull(5).orEmpty()).trim()
     val place = plainText(cells.getOrNull(6).orEmpty()).trim()
+    val mrtgPath = MRTG_IMG.find(rowHtml)?.groupValues?.get(1)
+        ?: "/inc/other/rrd/$ip/nolegend.png"
+    val picPath = PIC_HREF.find(rowHtml)?.groupValues?.get(1)
+        ?: "/sw/pic/$ip"
     return SwDevice(
         number = number.trim(),
         ip = ip,
@@ -76,6 +80,8 @@ private fun parseDeviceRow(rowHtml: String, down: Boolean): SwDevice? {
         switchType = switchType,
         place = place,
         down = down,
+        mrtgUrl = absoluteNosAssetUrl(mrtgPath),
+        picUrl = absoluteNosAssetUrl(picPath),
     )
 }
 
@@ -135,5 +141,15 @@ private val IP_HIDDEN = Regex(
 
 private val NUMBER_AFTER_IP_HIDDEN = Regex(
     """id=['"]ip['"]\s+value=['"][0-9.]+['"]\s*>\s*(\d+)""",
+    RegexOption.IGNORE_CASE,
+)
+
+private val MRTG_IMG = Regex(
+    """src=['"]([^'"]*inc/other/rrd/[^'"]+)['"]""",
+    RegexOption.IGNORE_CASE,
+)
+
+private val PIC_HREF = Regex(
+    """href=['"](/sw/pic/[0-9.]+)['"]""",
     RegexOption.IGNORE_CASE,
 )

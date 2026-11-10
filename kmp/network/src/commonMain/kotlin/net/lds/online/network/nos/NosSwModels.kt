@@ -16,6 +16,10 @@ data class SwDevice(
     val switchType: String,
     val place: String,
     val down: Boolean,
+    /** Absolute URL of web mrtg thumb (`/inc/other/rrd/{ip}/nolegend.png`). */
+    val mrtgUrl: String? = null,
+    /** Absolute URL of web full graph page (`/sw/pic/{ip}`). */
+    val picUrl: String? = null,
 ) {
     val subtitle: String
         get() = listOfNotNull(
