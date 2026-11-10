@@ -50,12 +50,15 @@
   Verify: в login и udf UI нет `material3` Button/TextField/OutlinedButton; `app/shared` не тянет `compose-material3` ради экранов.
 - [x] U3 — Веб-«Профиль» NOS (= тема) не дублировать отдельным bottom-tab: настройки уже в тулбаре. В `SettingsScreen` активны блоки «Оформление» и «О приложении»; демо-«Уведомления» закомментированы (не удалены).
   Verify: открыть шестерёнку в тулбаре — видны Оформление + О приложении, секции уведомлений нет; закомментированный блок «Уведомления» остаётся в `SettingsScreen.kt`.
-- [x] U4 — Bottom nav: tabs **Карта** (`MainTab.Map`, дефолт после auth) и **Свичи** (`MainTab.Switches`). «Профиль» / демо Desktop/Requests убраны из bar (файлы экранов не удалять, entries закомментированы). Тема — Settings overlay.
-  Verify: bottom bar показывает «Карта» и «Свичи»; нет «Профиль»/«Рабочий стол»/«Заявки»; `ProfileScreen.kt` / `DesktopScreen.kt` / `RequestsScreen.kt` на месте; `MainTab.Map` + `MainTab.Switches` в `CorporateShell.kt`.
+- [x] U4 — Bottom nav: tabs **Карта** (`MainTab.Map`, дефолт), **Свичи** (`MainTab.Switches`, markgen), **Узлы** (`MainTab.Sites`, веб `/sw` left menu). «Профиль» / демо Desktop/Requests убраны из bar (файлы экранов не удалять, entries закомментированы). Тема — Settings overlay.
+  Verify: bottom bar показывает «Карта», «Свичи», «Узлы»; нет «Профиль»/«Рабочий стол»/«Заявки»; `ProfileScreen.kt` / `DesktopScreen.kt` / `RequestsScreen.kt` на месте; `MainTab` entries в `CorporateShell.kt`.
   Изм. 2026-11-10: добавлен tab Карта; демо Desktop/Requests тоже закомментированы в nav.
-  Изм. 2026-11-10: добавлен tab «Свичи» (веб `/sw`).
-- [x] U9 — Экран **Свичи**: список lean markgen `type=sw` (`NosMapRepository.markgen(TYPE_SW)`); фильтр сегментами Все/OK/DN/LD/NV по `layer_*`; поиск по имени/статусу; иконки как на карте (`resolvedIconUrl`); refresh в тулбаре (ArrowClockwise). Без WebView `/sw`.
-  Verify: tab «Свичи» → список коммутаторов; смена сегмента DN показывает только `layer_dn`; поиск сужает список; иконки зел/красн/жёлт/серые PNG; кнопка обновить в top bar.
+  Изм. 2026-11-10: добавлен tab «Свичи» (markgen).
+  Изм. 2026-11-10: добавлен tab «Узлы» (веб `#s_sw`); markgen-tab **Свичи** не удалять.
+- [x] U9 — Экран **Свичи** (оставить): список lean markgen `type=sw` (`NosMapRepository.markgen(TYPE_SW)`); фильтр сегментами Все/OK/DN/LD/NV по `layer_*`; поиск по имени/статусу; иконки как на карте (`resolvedIconUrl`); refresh в тулбаре (ArrowClockwise). Не заменяет веб-меню `/sw`.
+  Verify: tab «Свичи» → список коммутаторов с карты; смена сегмента DN показывает только `layer_dn`; поиск сужает список; иконки зел/красн/жёлт/серые PNG; кнопка обновить в top bar; файлы `ui/switches/*` на месте.
+- [x] U10 — Экран **Узлы** = веб left menu `#s_sw`: список с `GET /sw` (`NosSwRepository.sites`); тап → деталь `GET /sw/{id}` (таблица устройств: IP/адрес/тип/место/vlan, down=`red`); поиск по имени; back из детали; refresh списка в тулбаре. Без хардкода имён узлов и без WebView.
+  Verify: tab «Узлы» → ~сотни имён вроде `pumba`/`yablochnaya44a` с `/sw/{id}`; открыть узел — список IP; красные строки = down; имена не зашиты в коде.
 - [x] U5 — Сворачиваемая легенда как веб `#legend`: иконка + подпись + count; **чекбоксы** вкл/выкл слои на карте (`visibleLayers` / `ToggleLayer` / `ToggleGroup`) без перезагрузки markgen; данные из OOP-каталога. Панели легенды/обновления — **TopStart**, не перекрывают zoom +/- снизу.
   Verify: `MapLegendPanel` + `CupertinoCheckBox`; снять «Свич доступен» → зелёные свичи пропадают; zoom кнопки снизу справа свободны; нет краша `clickable`/`CupertinoIndication`.
   Изм. 2026-11-10: checkbox show/hide; панели снизу → TopStart (не кроют зум).
@@ -73,6 +76,8 @@
 - [x] D2 — Легенда карты — статический OOP-каталог (`MapLegendItem` / `MapLegendGroup` / `NosMapLegendCatalog`, паритет веб) **плюс** авто-дополнение: неизвестные `layer` из markgen → `discoverUnknownLayers` (title/icon с маркера), в свою группу по `type` или в «Другие»; `snapshotFor` даёт counts. Не парсить `/osm`.
   Verify: `NosMapLegendCatalog.snapshotFor` / `discoverUnknownLayers`; известные слои из каталога; новый `layer_*` в ответе появляется в легенде без правки каталога; `MapViewModel` кладёт `legend` в `MapUiData`.
   Изм. 2026-11-10: было только static catalog → static + discovery из markgen.
+- [x] D3 — Узлы `/sw`: нет JSON-списка — `NosSwRepository` тянет HTML `GET /sw` и `GET /sw/{id}` (тот же CookieJar/сессия), парсит `#s_sw` → `SwSite`, таблицу → `SwDevice`/`SwSitePage`. Не хардкодить меню из HTML-снимка чата.
+  Verify: `NosSwRepository.sites` / `sitePage`; `NosEndpoints.SW`; парсеры `parseSwSites` / `parseSwSitePage`; UI `SitesViewModel` / `SiteDetailViewModel` только через репозиторий.
 
 ## X. Процесс
 

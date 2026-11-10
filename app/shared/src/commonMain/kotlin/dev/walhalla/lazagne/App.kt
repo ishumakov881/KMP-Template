@@ -26,6 +26,7 @@ import io.github.alexzhirkevich.cupertino.theme.lightColorScheme
 import io.ktor.client.plugins.cookies.AcceptAllCookiesStorage
 import net.lds.online.network.nos.NosAuthRepository
 import net.lds.online.network.nos.NosMapRepository
+import net.lds.online.network.nos.NosSwRepository
 import net.lds.online.network.nos.createNosHttpClient
 
 private sealed interface AuthGate {
@@ -41,18 +42,23 @@ fun App(
     appPreferences: AppPreferences? = null,
     authRepository: NosAuthRepository? = null,
     mapRepository: NosMapRepository? = null,
+    swRepository: NosSwRepository? = null,
 ) {
     var sessionPrefs by remember { mutableStateOf(ThemePrefs()) }
     val prefs = themeSettings?.prefs ?: sessionPrefs
 
     val resolvedPrefs = remember(appPreferences) { appPreferences }
-    val (resolvedAuth, resolvedMap) = remember(authRepository, mapRepository) {
-        if (authRepository != null && mapRepository != null) {
-            authRepository to mapRepository
+    val (resolvedAuth, resolvedMap, resolvedSw) = remember(authRepository, mapRepository, swRepository) {
+        if (authRepository != null && mapRepository != null && swRepository != null) {
+            Triple(authRepository, mapRepository, swRepository)
         } else {
             val cookies = AcceptAllCookiesStorage()
             val client = createNosHttpClient(cookies = cookies)
-            NosAuthRepository(cookies, client) to NosMapRepository(client)
+            Triple(
+                NosAuthRepository(cookies, client),
+                NosMapRepository(client),
+                NosSwRepository(client),
+            )
         }
     }
 
@@ -118,6 +124,7 @@ fun App(
                     else sessionPrefs = transform(sessionPrefs)
                 },
                 mapRepository = resolvedMap,
+                swRepository = resolvedSw,
             )
         }
     }

@@ -1,0 +1,32 @@
+package net.lds.online.network.nos
+
+/** Entry from web left menu `#s_sw` (`/sw/{id}` → name). */
+data class SwSite(
+    val id: Int,
+    val name: String,
+)
+
+/** One device row from web `/sw/{id}` table. */
+data class SwDevice(
+    val number: String,
+    val ip: String,
+    val address: String,
+    val siteHint: String,
+    val vlan: String,
+    val switchType: String,
+    val place: String,
+    val down: Boolean,
+) {
+    val subtitle: String
+        get() = listOfNotNull(
+            address.takeIf { it.isNotBlank() },
+            switchType.takeIf { it.isNotBlank() },
+            place.takeIf { it.isNotBlank() },
+        ).joinToString(" · ")
+}
+
+data class SwSitePage(
+    val id: Int,
+    val title: String,
+    val devices: List<SwDevice>,
+)

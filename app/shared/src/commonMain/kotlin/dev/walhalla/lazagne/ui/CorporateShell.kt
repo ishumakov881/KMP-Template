@@ -38,6 +38,7 @@ import io.github.alexzhirkevich.cupertino.CupertinoTopAppBar
 import io.github.alexzhirkevich.cupertino.ExperimentalCupertinoApi
 import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
 import io.github.alexzhirkevich.cupertino.icons.filled.ListBulletCircle
+import io.github.alexzhirkevich.cupertino.icons.filled.ListBulletClipboard
 import io.github.alexzhirkevich.cupertino.icons.filled.Map
 // import io.github.alexzhirkevich.cupertino.icons.filled.DocText
 // import io.github.alexzhirkevich.cupertino.icons.filled.House
@@ -48,6 +49,7 @@ import io.github.alexzhirkevich.cupertino.icons.outlined.DocOnDoc
 import io.github.alexzhirkevich.cupertino.icons.outlined.EllipsisCircle
 import io.github.alexzhirkevich.cupertino.icons.outlined.Gearshape
 // import io.github.alexzhirkevich.cupertino.icons.outlined.House
+import io.github.alexzhirkevich.cupertino.icons.outlined.ListBulletIndent
 import io.github.alexzhirkevich.cupertino.icons.outlined.Map
 // import io.github.alexzhirkevich.cupertino.icons.outlined.PersonCropCircle
 import io.github.alexzhirkevich.cupertino.icons.outlined.Plus
@@ -66,7 +68,12 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import net.lds.online.network.nos.NosMapRepository
+import net.lds.online.network.nos.NosSwRepository
 import dev.walhalla.lazagne.ui.map.MapRoute
+import dev.walhalla.lazagne.ui.sites.SiteDetailRoute
+import dev.walhalla.lazagne.ui.sites.SitesEvent
+import dev.walhalla.lazagne.ui.sites.SitesRoute
+import dev.walhalla.lazagne.ui.sites.SitesViewModel
 import dev.walhalla.lazagne.ui.switches.SwitchesEvent
 import dev.walhalla.lazagne.ui.switches.SwitchesRoute
 import dev.walhalla.lazagne.ui.switches.SwitchesViewModel
@@ -76,7 +83,9 @@ const val AppName = "NOS"
 enum class MainTab(val title: String, val icon: ImageVector, val selectedIcon: ImageVector) {
     Map("Карта", CupertinoIcons.Default.Map, CupertinoIcons.Filled.Map),
     Switches("Свичи", CupertinoIcons.Default.ServerRack, CupertinoIcons.Filled.ListBulletCircle),
-    // Демо Desktop/Requests оставляем в файлах, tab убран — целевые: Карта / Свичи.
+    /** Web `/sw` left menu `#s_sw` (площадки/узлы), не markgen. */
+    Sites("Узлы", CupertinoIcons.Default.ListBulletIndent, CupertinoIcons.Filled.ListBulletClipboard),
+    // Демо Desktop/Requests оставляем в файлах, tab убран — целевые: Карта / Свичи / Узлы.
     // Desktop("Рабочий стол", CupertinoIcons.Default.House, CupertinoIcons.Filled.House),
     // Requests("Заявки", CupertinoIcons.Default.DocText, CupertinoIcons.Filled.DocText),
     // Веб-«Профиль» = тема → Settings в тулбаре. Демо ProfileScreen.kt оставляем, tab убран.
@@ -86,6 +95,7 @@ enum class MainTab(val title: String, val icon: ImageVector, val selectedIcon: I
 sealed interface Overlay {
     data class RequestForm(val request: CorpRequest?, val type: RequestType) : Overlay
     data object Settings : Overlay
+    data class SwSiteDetail(val siteId: Int, val siteName: String) : Overlay
 }
 
 @Stable
@@ -115,12 +125,14 @@ fun CorporateShell(
     isDark: Boolean,
     onThemePrefsChange: ((ThemePrefs) -> ThemePrefs) -> Unit,
     mapRepository: NosMapRepository,
+    swRepository: NosSwRepository,
 ) {
     var tab by rememberSaveable { mutableStateOf(MainTab.Map) }
     var stack by remember { mutableStateOf(listOf<Overlay>()) }
     var desktopLoaded by rememberSaveable { mutableStateOf(false) }
     val requestsState = remember { RequestsState() }
     val switchesViewModel = remember(mapRepository) { SwitchesViewModel(mapRepository) }
+    val sitesViewModel = remember(swRepository) { SitesViewModel(swRepository) }
     val scope = rememberCoroutineScope()
     val sheetState = rememberCupertinoSheetState()
     val scaffoldState = rememberCupertinoBottomSheetScaffoldState(sheetState)
@@ -160,6 +172,7 @@ fun CorporateShell(
                         text = when (top) {
                             is Overlay.RequestForm -> formTitle(top)
                             Overlay.Settings -> "Настройки"
+                            is Overlay.SwSiteDetail -> top.siteName.ifBlank { "Узел ${top.siteId}" }
                             null -> AppName
                         },
                         maxLines = 1,
@@ -175,10 +188,22 @@ fun CorporateShell(
 
                         Overlay.Settings -> Unit
 
+                        is Overlay.SwSiteDetail -> Unit
+
                         null -> {
                             if (tab == MainTab.Switches) {
                                 CupertinoIconButton(
                                     onClick = { switchesViewModel.onEvent(SwitchesEvent.Refresh) },
+                                ) {
+                                    CupertinoIcon(
+                                        CupertinoIcons.Default.ArrowClockwise,
+                                        contentDescription = "Обновить",
+                                    )
+                                }
+                            }
+                            if (tab == MainTab.Sites) {
+                                CupertinoIconButton(
+                                    onClick = { sitesViewModel.onEvent(SitesEvent.Refresh) },
                                 ) {
                                     CupertinoIcon(
                                         CupertinoIcons.Default.ArrowClockwise,
@@ -234,6 +259,15 @@ fun CorporateShell(
                     viewModel = switchesViewModel,
                 )
 
+                MainTab.Sites -> SitesRoute(
+                    swRepository = swRepository,
+                    padding = padding,
+                    viewModel = sitesViewModel,
+                    onOpenSite = { site ->
+                        push(Overlay.SwSiteDetail(siteId = site.id, siteName = site.name))
+                    },
+                )
+
                 // MainTab.Desktop -> DesktopScreen(...)
                 // MainTab.Requests -> RequestsScreen(...)
                 // MainTab.Profile -> ProfileScreen(padding = padding)
@@ -250,6 +284,13 @@ fun CorporateShell(
                     themePrefs = themePrefs,
                     isDark = isDark,
                     onThemePrefsChange = onThemePrefsChange,
+                )
+
+                is Overlay.SwSiteDetail -> SiteDetailRoute(
+                    swRepository = swRepository,
+                    siteId = target.siteId,
+                    siteName = target.siteName,
+                    padding = padding,
                 )
             }
         }

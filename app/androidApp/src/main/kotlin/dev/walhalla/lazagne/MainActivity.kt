@@ -12,6 +12,7 @@ import dev.walhalla.lazagne.ui.ThemeSettings
 import io.ktor.client.plugins.cookies.AcceptAllCookiesStorage
 import net.lds.online.network.nos.NosAuthRepository
 import net.lds.online.network.nos.NosMapRepository
+import net.lds.online.network.nos.NosSwRepository
 import net.lds.online.network.nos.createNosHttpClient
 
 class MainActivity : ComponentActivity() {
@@ -28,6 +29,7 @@ class MainActivity : ComponentActivity() {
         val client = createNosHttpClient(cookies = cookies)
         val authRepository = NosAuthRepository(cookies, client)
         val mapRepository = NosMapRepository(client)
+        val swRepository = NosSwRepository(client)
 
         setContent {
             App(
@@ -35,6 +37,7 @@ class MainActivity : ComponentActivity() {
                 appPreferences = appPreferences,
                 authRepository = authRepository,
                 mapRepository = mapRepository,
+                swRepository = swRepository,
             )
         }
     }
