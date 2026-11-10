@@ -2,12 +2,15 @@ package dev.walhalla.lazagne.ui.map
 
 import net.lds.online.network.nos.LeanMapMarker
 import net.lds.online.network.nos.NosMapRepository
+import net.lds.online.network.nos.legend.MapLegendSnapshot
+import net.lds.online.network.nos.legend.NosMapLegendCatalog
 import net.lds.online.ui.base.BaseEvent
 import net.lds.online.ui.base.BaseViewModel
 
 data class MapUiData(
     val markers: List<LeanMapMarker> = emptyList(),
-    val layerType: String = NosMapRepository.TYPE_UZEL,
+    val loadedTypes: Set<String> = emptySet(),
+    val legend: MapLegendSnapshot = MapLegendSnapshot.Empty,
 )
 
 sealed interface MapEvent : BaseEvent {
@@ -16,7 +19,8 @@ sealed interface MapEvent : BaseEvent {
 
 class MapViewModel(
     private val mapRepository: NosMapRepository,
-    private val initialType: String = NosMapRepository.TYPE_UZEL,
+    /** Defaults to full web markgen set from `map_osm.js` (sw/uzel/pon/mft/wifi/usil/amp/lines). */
+    private val enabledTypes: List<String> = NosMapRepository.DEFAULT_MAP_TYPES,
 ) : BaseViewModel<MapUiData, MapEvent>() {
 
     init {
@@ -24,8 +28,17 @@ class MapViewModel(
     }
 
     override suspend fun onFetchData(): MapUiData {
-        val markers = mapRepository.markgen(initialType)
-        return MapUiData(markers = markers, layerType = initialType)
+        val types = enabledTypes.distinct()
+        val markers = mapRepository.markgenMany(types)
+        val loaded = types.toSet()
+        return MapUiData(
+            markers = markers,
+            loadedTypes = loaded,
+            legend = NosMapLegendCatalog.snapshotFor(
+                loadedTypes = loaded,
+                markers = markers,
+            ),
+        )
     }
 
     override fun onBusinessEvent(event: MapEvent) {

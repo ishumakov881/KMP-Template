@@ -3,11 +3,16 @@ package dev.walhalla.lazagne.ui.map
 import android.content.Context
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import net.lds.online.network.nos.LeanMapMarker
+import net.lds.online.network.nos.resolvedIconUrl
 import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.tilesource.XYTileSource
 import org.osmdroid.util.GeoPoint
@@ -40,6 +45,9 @@ actual fun NosMapCanvas(
     modifier: Modifier,
 ) {
     val context = LocalContext.current
+    val iconCache = remember { MarkerIconCache(context.applicationContext) }
+    var iconsVersion by remember { mutableIntStateOf(0) }
+
     val mapView = remember {
         ensureOsmdroidConfig(context.applicationContext)
         MapView(context).apply {
@@ -48,6 +56,12 @@ actual fun NosMapCanvas(
             controller.setZoom(11.0)
             controller.setCenter(GeoPoint(48.4422, 39.3544))
         }
+    }
+
+    LaunchedEffect(markers) {
+        val urls = markers.mapNotNull { it.resolvedIconUrl() }.distinct()
+        iconCache.ensureLoaded(urls)
+        iconsVersion++
     }
 
     DisposableEffect(mapView) {
@@ -61,6 +75,9 @@ actual fun NosMapCanvas(
         factory = { mapView },
         modifier = modifier,
         update = { view ->
+            // Depend on iconsVersion so overlays refresh after bitmaps load.
+            @Suppress("UNUSED_EXPRESSION")
+            iconsVersion
             val existing = view.overlays.filterIsInstance<Marker>()
             view.overlays.removeAll(existing.toSet())
             markers.forEach { item ->
@@ -69,6 +86,9 @@ actual fun NosMapCanvas(
                 marker.title = item.name.ifBlank { item.layer }
                 marker.snippet = item.layer
                 marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                iconCache.drawableFor(item.resolvedIconUrl())?.let { drawable ->
+                    marker.icon = drawable
+                }
                 view.overlays.add(marker)
             }
             view.invalidate()

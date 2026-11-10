@@ -4,6 +4,9 @@ import io.ktor.client.HttpClient
 import io.ktor.client.request.forms.submitForm
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.Parameters
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -11,12 +14,11 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.intOrNull
-import kotlinx.serialization.json.jsonPrimitive
 import net.lds.online.network.ApiException
 
 /**
  * NOS map data over the same CookieJar as [NosAuthRepository].
- * Loads markgen **per type** (do not fan-out all layers at once).
+ * Loads markgen **per type** (enabled set only — never silent full dump of all web types/MFT).
  */
 class NosMapRepository(
     private val client: HttpClient,
@@ -39,6 +41,16 @@ class NosMapRepository(
             throw ApiException.clientError(401, "Сессия истекла")
         }
         return parseLeanMarkers(body, type)
+    }
+
+    /** Parallel markgen for an explicit enabled set of types. */
+    suspend fun markgenMany(types: Collection<String>): List<LeanMapMarker> {
+        if (types.isEmpty()) return emptyList()
+        return coroutineScope {
+            types.distinct().map { type ->
+                async { markgen(type) }
+            }.awaitAll().flatten()
+        }
     }
 
     private fun parseLeanMarkers(body: String, type: String): List<LeanMapMarker> {
@@ -88,7 +100,30 @@ class NosMapRepository(
             body.contains("id='signin'")
 
     companion object {
-        const val TYPE_UZEL = "uzel"
+        /** markgen `type` values from web `map_osm.js` (returnSw/Uzel/Pon/Mft/Wifi/Usil + line/mft_line). */
         const val TYPE_SW = "sw"
+        const val TYPE_UZEL = "uzel"
+        const val TYPE_PON = "pon_new"
+        const val TYPE_MFT = "mft"
+        const val TYPE_WIFI = "wifi"
+        const val TYPE_USIL = "usil"
+        const val TYPE_KTV_AMP = "ktv_amp"
+        const val TYPE_LINE = "line"
+        const val TYPE_MFT_LINE = "mft_line"
+
+        /**
+         * Full web markgen set — keep in sync with `/js/map_osm.js` loaders, not a hand-picked subset.
+         */
+        val DEFAULT_MAP_TYPES: List<String> = listOf(
+            TYPE_SW,
+            TYPE_UZEL,
+            TYPE_PON,
+            TYPE_MFT,
+            TYPE_WIFI,
+            TYPE_USIL,
+            TYPE_KTV_AMP,
+            TYPE_LINE,
+            TYPE_MFT_LINE,
+        )
     }
 }

@@ -17,8 +17,9 @@
 
 - [x] P1 — Исследование сервиса `https://nos.lds.online/osm` (карта OSM через `https://maps.lds.online`): зафиксированы используемые HTTP/API endpoints, форматы данных маркеров/точек и вывод, нужен ли доступ к репозиторию NOS для нативной интеграции.
   Verify: `Documentation/research/NOS_OSM_API_RECON.md` содержит endpoints (`/ajax/ajaxmap.php` modes/types, тайлы `maps.lds.online/hot/...`), объёмы markgen и вердикт по репо; секреты входа не хранятся в репозитории.
-- [x] P2 — Нативный Android UI карты поверх NOS API (удобнее WebView `/osm`): login + `PHPSESSID`, тайлы `maps.lds.online` через **osmdroid** (`expect`/`actual NosMapCanvas`), lean markgen `uzel` через `NosMapRepository` на общем CookieJar с auth; без WebView страницы `/osm`.
-  Verify: tab «Карта» после auth; `NosMapCanvas.android.kt` = osmdroid + XYTileSource `maps.lds.online/hot/`; stub на jvm/ios/js/wasm; `:app:androidApp:compileDebugKotlin` ок; на устройстве видны тайлы + маркеры uzel.
+- [x] P2 — Нативный Android UI карты поверх NOS API (удобнее WebView `/osm`): login + `PHPSESSID`, тайлы `maps.lds.online` через **osmdroid**, lean markgen полного набора веб-`map_osm.js` (`DEFAULT_MAP_TYPES`: sw, uzel, pon_new, mft, wifi, usil, ktv_amp, line, mft_line) на общем CookieJar; без WebView `/osm`.
+  Verify: tab «Карта»; osmdroid + LDS tiles; легенда Коммутаторы/Узлы/PON/КТВ/WIFI; типы = все loaders из `map_osm.js`, не ручной subset.
+  Изм. 2026-11-10: убрали ручные «урезанные» списки — полный паритет markgen types с вебом.
   Изм. 2026-11-10: зафиксирован osmdroid + expect/actual (не MapLibre, не KMP-osmdroid).
 - [x] P3 — Нативная авторизация = session-login как у веба: GET `/login` → POST `login`/`password`/`next`/`submit-login` → успех только при **302 на next** (или страница карты без формы входа); cookie `PHPSESSID` в Ktor CookieJar. Не считать успехом выдачу PHPSESSID и не использовать `get_count` как proof (он публичный). Неверный пароль не пускает в приложение.
   Verify: `NosAuthRepository.login` бросает на «Неверное имя…» / форме входа; после успеха открывается `/osm` без redirect на login; wrong-password тест/ручная проверка не вызывает `onAuthenticated`.
@@ -33,8 +34,9 @@
 
 - [x] A1 — Payload маркеров lean: в списке точек для карты нет тяжёлого `popupContent` (HTML); parse в `NosMapRepository` с `ignoreUnknownKeys` → `LeanMapMarker` (name/lat/lng/state/layer/icon/type). Детали попапа по клику — позже.
   Verify: `LeanMapMarker` / `NosMapRepository.parseLeanMarkers` не читают `popupContent` в модель; UI map state = list of `LeanMapMarker`.
-- [x] A2 — Загрузка данных карты по требованию слоёв: при старте карты один `markgen` type=`uzel` (не все types сразу). Дальше — checkbox слоёв / bbox.
-  Verify: `MapViewModel` / `NosMapRepository.markgen(TYPE_UZEL)` — один type; нет параллельных markgen по всем слоям при открытии.
+- [x] A2 — Загрузка карты = **полный** набор markgen из веб `map_osm.js` (`NosMapRepository.DEFAULT_MAP_TYPES`: sw, uzel, pon_new, mft, wifi, usil, ktv_amp, line, mft_line). Список сверять с JS, не выкидывать PON/MFT «для удобства» без явной просьбы. Checkbox/bbox — дальше.
+  Verify: `DEFAULT_MAP_TYPES` содержит все 9 type; `MapViewModel` → `markgenMany(DEFAULT_MAP_TYPES)`; легенда включает PON; `markgenTypesInLegend` покрывает эти type.
+  Изм. 2026-11-10: subset без PON → полный паритет с `map_osm.js`.
 - [ ] A3 — В проекте есть UDF как в ldsonline: модуль `:kmp:udf` (`BaseViewModel`, `UiState`, `ScreenState`, `BaseScreenLayout` / effects) и зависимости `:kmp:network` (`ApiException`), `:kmp:ldscore` (notifications enums).
   Verify: `settings.gradle.kts` include `:kmp:udf`; `app/shared` зависит от `:kmp:udf`; login/экраны наследуют `BaseViewModel`.
 - [x] A4 — Prefs: один универсальный `AppPreferences(Settings)` с generic get/put/remove и ключами в `companion`; не плодить доменные одноключевые `*SessionStore` / `*Store`. In-memory для Preview/тестов — `InMemorySettings`, не `MapSettings` на проде.
@@ -51,11 +53,19 @@
 - [x] U4 — Bottom nav: tab **Карта** (`MainTab.Map`, дефолт после auth). «Профиль» / демо Desktop/Requests убраны из bar (файлы экранов не удалять, entries закомментированы). Тема — Settings overlay. Позже: Свичи.
   Verify: bottom bar показывает «Карта»; нет «Профиль»/«Рабочий стол»/«Заявки»; `ProfileScreen.kt` / `DesktopScreen.kt` / `RequestsScreen.kt` на месте; `MainTab.Map` в `CorporateShell.kt`.
   Изм. 2026-11-10: добавлен tab Карта; демо Desktop/Requests тоже закомментированы в nav.
+- [x] U5 — На карте есть сворачиваемая легенда (как веб `#legend`): иконка + подпись + count по загруженным слоям; данные из OOP-каталога, не из HTML/API легенды.
+  Verify: `MapLegendPanel` на `MapScreen` (bottom-start); группы Коммутаторы/Узлы/WIFI/КТВ с иконками и counts; клик по заголовку сворачивает; нет краша `clickable`/`CupertinoIndication` (overload с `indication = LocalIndication.current`).
+  Изм. 2026-11-10: no-arg `Modifier.clickable` под Cupertino → IllegalArgumentException IndicationNodeFactory.
+- [x] U6 — Иконки маркеров на карте совпадают с легендой/markgen: `LeanMapMarker.resolvedIconUrl()` (`icon` с сервера, иначе catalog по `layer`) → osmdroid `Marker.icon` через `MarkerIconCache` (не дефолтный пин).
+  Verify: свичи/узлы/wifi на карте цветными PNG с `nos.lds.online/images/map/...`, как в легенде; уникальные URL кэшируются.
 
 ## D. Данные
 
 - [ ] D1 — Маркер — одна сущность со сменным статусом/слоем (`layer`/`state`/`icon`, напр. wifi ok↔dn); UI-группы — фильтр по полям, не отдельные копии объекта. Офлайн Room хранит сущности; синк не обязан «пересчитывать глобальный JSON», а upsert’ит пришедший снимок типа (пока API только full markgen по type; delta — отдельное улучшение бэка).
   Verify: в модели/доке зафиксировано: группа = атрибут; Refresh веба = `deleteOverlays` + полный markgen всех type по интервалу; натив фильтрует Room по `layer`, не дублирует точки по группам.
+- [x] D2 — Легенда карты — статический OOP-каталог (`MapLegendItem` / `MapLegendGroup` / `NosMapLegendCatalog`, паритет веб) **плюс** авто-дополнение: неизвестные `layer` из markgen → `discoverUnknownLayers` (title/icon с маркера), в свою группу по `type` или в «Другие»; `snapshotFor` даёт counts. Не парсить `/osm`.
+  Verify: `NosMapLegendCatalog.snapshotFor` / `discoverUnknownLayers`; известные слои из каталога; новый `layer_*` в ответе появляется в легенде без правки каталога; `MapViewModel` кладёт `legend` в `MapUiData`.
+  Изм. 2026-11-10: было только static catalog → static + discovery из markgen.
 
 ## X. Процесс
 
