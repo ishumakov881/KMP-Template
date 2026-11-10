@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">KMP Template</string>
+    <string name="press_again_to_exit">Нажмите еще раз, чтобы выйти.</string>
 </resources>

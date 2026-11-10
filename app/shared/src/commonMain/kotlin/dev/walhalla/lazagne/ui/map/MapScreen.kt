@@ -32,9 +32,9 @@ fun MapRoute(
     padding: PaddingValues,
     onOpenPic: (ip: String, titleHint: String) -> Unit = { _, _ -> },
     onOpenSite: (siteId: Int, siteName: String) -> Unit = { _, _ -> },
+    viewModel: MapViewModel = remember(mapRepository) { MapViewModel(mapRepository) },
     modifier: Modifier = Modifier,
 ) {
-    val viewModel = remember(mapRepository) { MapViewModel(mapRepository) }
     MapScreen(
         viewModel = viewModel,
         padding = padding,

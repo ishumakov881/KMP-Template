@@ -58,6 +58,8 @@
 
 **Итого маркеров ≈ 19k**, суммарно JSON ≈ **15 MB** (без тайлов), плюс тысячи DOM-маркеров Leaflet.
 
+Бриф для бэка (приоритеты lean/bbox/delta): `Documentation/research/NOS_MARKGEN_SERVER_OPTIMIZATION.md`.
+
 `get_count` пример:  
 `{"sw_ok":"576","sw_dn":"2723","sw_ld":"9","sw_ds":"0","sw_nv":"52","sw_mc":"10"}`
 

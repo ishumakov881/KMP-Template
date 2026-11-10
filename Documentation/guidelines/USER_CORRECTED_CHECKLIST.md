@@ -17,6 +17,8 @@
 
 - [x] P1 — Исследование сервиса `https://nos.lds.online/osm` (карта OSM через `https://maps.lds.online`): зафиксированы используемые HTTP/API endpoints, форматы данных маркеров/точек и вывод, нужен ли доступ к репозиторию NOS для нативной интеграции.
   Verify: `Documentation/research/NOS_OSM_API_RECON.md` содержит endpoints (`/ajax/ajaxmap.php` modes/types, тайлы `maps.lds.online/hot/...`), объёмы markgen и вердикт по репо; секреты входа не хранятся в репозитории.
+- [x] P6 — Бриф оптимизации сервера markgen: объёмы 9 type (**≈15 MB**, не 9; лидеры `mft`~8.1 + `sw`~5.5), причина (`popupContent` HTML), приоритеты P0–P5 (lean list, detail endpoint, bbox, delta) — файл для передачи бэку.
+  Verify: есть `Documentation/research/NOS_MARKGEN_SERVER_OPTIMIZATION.md` с таблицей размеров и чеклистом серверных изменений.
 - [x] P2 — Нативный Android UI карты поверх NOS API (удобнее WebView `/osm`): login + `PHPSESSID`, тайлы `maps.lds.online` через **osmdroid**, lean markgen полного набора веб-`map_osm.js` (`DEFAULT_MAP_TYPES`: sw, uzel, pon_new, mft, wifi, usil, ktv_amp, line, mft_line) на общем CookieJar; без WebView `/osm`.
   Verify: tab «Карта»; osmdroid + LDS tiles; легенда Коммутаторы/Узлы/PON/КТВ/WIFI; типы = все loaders из `map_osm.js`, не ручной subset.
   Изм. 2026-11-10: убрали ручные «урезанные» списки — полный паритет markgen types с вебом.
@@ -74,6 +76,14 @@
   Изм. 2026-11-10: было bare InfoWindow name/type → полный попап как веб.
 - [x] U8 — Блок **Обновление** как веб `#intval` / `#more_intval`: интервалы 10 секунд / 1 минута / 5 минут (default 5 мин = 300000); `setInterval` → `loadData(isRefreshing)`; UI `MapRefreshPanel` рядом с легендой.
   Verify: свернуть/развернуть «Обновление»; выбрать «10 секунд» — markgen перезапрашивается ~каждые 10с; после смены интервала таймер перезапускается; дефолт 5 минут.
+- [x] U12 — Поле пароля на login маскирует ввод (`PasswordVisualTransformation` + `KeyboardType.Password`), не показывает символы открытым текстом.
+  Verify: `LoginScreen` password `textField` с `visualTransformation = PasswordVisualTransformation()`; на устройстве/desktop точки/буллеты вместо символов.
+- [x] U13 — Смена bottom-tab не перезагружает markgen/списки: `MapViewModel` / `SwitchesViewModel` / `SitesViewModel` живут в `CorporateShell` (`remember`), не внутри `AnimatedContent` tab content.
+  Verify: Карта → Узлы → Карта без повторного полного markgen; список маркеров/легенда на месте; то же для Свичи/Узлы.
+- [x] U14 — Системный Back как ldsonline: **один** `NavigationBackHandler` — sheet → overlay pop → tab≠Карта→Карта; на Карте без overlay — double-back (<2с) выход (`MainActivity` + toast `press_again_to_exit`). Не три отдельных handler’а.
+  Verify: Узлы → Back → Карта (иконка Карта сразу selected); Карта → Back → toast; второй Back <2с → `finish()`; из детали узла Back сначала pop overlay.
+- [x] U15 — Main tabs keep-alive: Карта/Свичи/Узлы остаются в composition (`TabKeepAlive` alpha/zIndex), не через `AnimatedContent` на tab. Смена tab/Back не пересобирает osmdroid-маркеры и не тормозит подсветку bottom-nav.
+  Verify: Узлы → Back → иконка «Карта» активна сразу, без ожидания «прогрузки» карты; уход/возврат на Карту без полной пересборки overlays.
 
 ## D. Данные
 

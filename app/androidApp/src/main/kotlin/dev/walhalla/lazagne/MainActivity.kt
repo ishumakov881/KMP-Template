@@ -1,7 +1,9 @@
 package dev.walhalla.lazagne
 
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
@@ -16,6 +18,8 @@ import net.lds.online.network.nos.NosSwRepository
 import net.lds.online.network.nos.createNosHttpClient
 
 class MainActivity : ComponentActivity() {
+    private var lastBackPressedTime: Long = 0
+
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
@@ -30,8 +34,25 @@ class MainActivity : ComponentActivity() {
         val authRepository = NosAuthRepository(cookies, client)
         val mapRepository = NosMapRepository(client)
         val swRepository = NosSwRepository(client)
+        val exitToast = Toast.makeText(
+            this,
+            getString(R.string.press_again_to_exit),
+            Toast.LENGTH_SHORT,
+        )
 
         setContent {
+            // ldsonline: when Compose tab/overlay handlers are disabled, double-back exits.
+            BackHandler(true) {
+                val now = System.currentTimeMillis()
+                if (now - lastBackPressedTime < 2000L) {
+                    exitToast.cancel()
+                    finish()
+                } else {
+                    lastBackPressedTime = now
+                    exitToast.show()
+                }
+            }
+
             App(
                 themeSettings = themeSettings,
                 appPreferences = appPreferences,

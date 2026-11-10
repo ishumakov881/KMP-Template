@@ -6,6 +6,7 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.LazyColumn
@@ -19,7 +20,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.zIndex
 import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
@@ -70,6 +73,7 @@ import kotlinx.coroutines.launch
 import net.lds.online.network.nos.NosMapRepository
 import net.lds.online.network.nos.NosSwRepository
 import dev.walhalla.lazagne.ui.map.MapRoute
+import dev.walhalla.lazagne.ui.map.MapViewModel
 import dev.walhalla.lazagne.ui.sites.SiteDetailRoute
 import dev.walhalla.lazagne.ui.sites.SitesEvent
 import dev.walhalla.lazagne.ui.sites.SitesRoute
@@ -134,6 +138,8 @@ fun CorporateShell(
     var stack by remember { mutableStateOf(listOf<Overlay>()) }
     var desktopLoaded by rememberSaveable { mutableStateOf(false) }
     val requestsState = remember { RequestsState() }
+    // Keep tab VMs above AnimatedContent so markgen/sites lists survive tab switches.
+    val mapViewModel = remember(mapRepository) { MapViewModel(mapRepository) }
     val switchesViewModel = remember(mapRepository) { SwitchesViewModel(mapRepository) }
     val sitesViewModel = remember(swRepository) { SitesViewModel(swRepository) }
     val scope = rememberCoroutineScope()
@@ -145,15 +151,22 @@ fun CorporateShell(
     val pop: () -> Unit = { stack = stack.dropLast(1) }
     val hideSheet: () -> Unit = { scope.launch { sheetState.hide() } }
 
+    // One back chain (ldsonline): sheet → overlay → home tab. On Map+empty → MainActivity double-back exit.
+    val consumeSystemBack =
+        sheetState.isVisible || stack.isNotEmpty() || tab != MainTab.Map
     NavigationBackHandler(
         state = rememberNavigationEventState(NavigationEventInfo.None),
-        isBackEnabled = stack.isNotEmpty() && !sheetState.isVisible,
-        onBackCompleted = pop,
-    )
-    NavigationBackHandler(
-        state = rememberNavigationEventState(NavigationEventInfo.None),
-        isBackEnabled = sheetState.isVisible,
-        onBackCompleted = hideSheet,
+        isBackEnabled = consumeSystemBack,
+        onBackCompleted = {
+            when {
+                sheetState.isVisible -> hideSheet()
+                stack.isNotEmpty() -> pop()
+                else -> {
+                    tab = MainTab.Map
+                    stack = emptyList()
+                }
+            }
+        },
     )
 
     CupertinoBottomSheetScaffold(
@@ -253,14 +266,14 @@ fun CorporateShell(
             }
         },
     ) { padding ->
-        AnimatedContent(
-            targetState = top ?: tab,
-            transitionSpec = { fadeIn() togetherWith fadeOut() },
-        ) { target ->
-            when (target) {
-                MainTab.Map -> MapRoute(
+        Box(Modifier.fillMaxSize()) {
+            // Keep main tabs composed (alpha/zIndex). AnimatedContent tore Map down → UI freeze
+            // while ~19k markers rebuilt, so bottom-nav selection lagged on Back.
+            TabKeepAlive(visible = top == null && tab == MainTab.Map) {
+                MapRoute(
                     mapRepository = mapRepository,
                     padding = padding,
+                    viewModel = mapViewModel,
                     onOpenPic = { ip, titleHint ->
                         push(Overlay.SwPicDetail(path = ip, titleHint = titleHint))
                     },
@@ -268,14 +281,16 @@ fun CorporateShell(
                         push(Overlay.SwSiteDetail(siteId = siteId, siteName = siteName))
                     },
                 )
-
-                MainTab.Switches -> SwitchesRoute(
+            }
+            TabKeepAlive(visible = top == null && tab == MainTab.Switches) {
+                SwitchesRoute(
                     mapRepository = mapRepository,
                     padding = padding,
                     viewModel = switchesViewModel,
                 )
-
-                MainTab.Sites -> SitesRoute(
+            }
+            TabKeepAlive(visible = top == null && tab == MainTab.Sites) {
+                SitesRoute(
                     swRepository = swRepository,
                     padding = padding,
                     viewModel = sitesViewModel,
@@ -283,46 +298,71 @@ fun CorporateShell(
                         push(Overlay.SwSiteDetail(siteId = site.id, siteName = site.name))
                     },
                 )
+            }
 
-                // MainTab.Desktop -> DesktopScreen(...)
-                // MainTab.Requests -> RequestsScreen(...)
-                // MainTab.Profile -> ProfileScreen(padding = padding)
+            val overlay = top
+            if (overlay != null) {
+                AnimatedContent(
+                    targetState = overlay,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .zIndex(2f),
+                    transitionSpec = { fadeIn() togetherWith fadeOut() },
+                    label = "overlay",
+                ) { target ->
+                    when (target) {
+                        is Overlay.RequestForm -> RequestFormScreen(
+                            padding = padding,
+                            request = target.request,
+                            initialType = target.type,
+                            onSubmitted = pop,
+                        )
 
-                is Overlay.RequestForm -> RequestFormScreen(
-                    padding = padding,
-                    request = target.request,
-                    initialType = target.type,
-                    onSubmitted = pop,
-                )
+                        Overlay.Settings -> SettingsScreen(
+                            padding = padding,
+                            themePrefs = themePrefs,
+                            isDark = isDark,
+                            onThemePrefsChange = onThemePrefsChange,
+                        )
 
-                Overlay.Settings -> SettingsScreen(
-                    padding = padding,
-                    themePrefs = themePrefs,
-                    isDark = isDark,
-                    onThemePrefsChange = onThemePrefsChange,
-                )
+                        is Overlay.SwSiteDetail -> SiteDetailRoute(
+                            swRepository = swRepository,
+                            siteId = target.siteId,
+                            siteName = target.siteName,
+                            padding = padding,
+                            onOpenPic = { ip, titleHint ->
+                                push(Overlay.SwPicDetail(path = ip, titleHint = titleHint))
+                            },
+                        )
 
-                is Overlay.SwSiteDetail -> SiteDetailRoute(
-                    swRepository = swRepository,
-                    siteId = target.siteId,
-                    siteName = target.siteName,
-                    padding = padding,
-                    onOpenPic = { ip, titleHint ->
-                        push(Overlay.SwPicDetail(path = ip, titleHint = titleHint))
-                    },
-                )
-
-                is Overlay.SwPicDetail -> SwPicRoute(
-                    swRepository = swRepository,
-                    path = target.path,
-                    titleHint = target.titleHint,
-                    padding = padding,
-                    onOpenGraph = { path, titleHint ->
-                        push(Overlay.SwPicDetail(path = path, titleHint = titleHint))
-                    },
-                )
+                        is Overlay.SwPicDetail -> SwPicRoute(
+                            swRepository = swRepository,
+                            path = target.path,
+                            titleHint = target.titleHint,
+                            padding = padding,
+                            onOpenGraph = { path, titleHint ->
+                                push(Overlay.SwPicDetail(path = path, titleHint = titleHint))
+                            },
+                        )
+                    }
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun TabKeepAlive(
+    visible: Boolean,
+    content: @Composable () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .alpha(if (visible) 1f else 0f)
+            .zIndex(if (visible) 1f else 0f),
+    ) {
+        content()
     }
 }
 
