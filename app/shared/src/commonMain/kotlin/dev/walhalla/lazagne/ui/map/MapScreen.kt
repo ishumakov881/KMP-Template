@@ -49,18 +49,13 @@ fun MapScreen(
                     markers = data.visibleMarkers,
                     modifier = Modifier.fillMaxSize(),
                 )
+                // Top-start like web side menu — leave bottom free for osmdroid zoom +/-.
                 Column(
                     modifier = Modifier
-                        .align(Alignment.BottomStart)
+                        .align(Alignment.TopStart)
                         .padding(12.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    MapRefreshPanel(
-                        selected = data.refreshInterval,
-                        onSelect = { interval ->
-                            viewModel.onEvent(MapEvent.SetRefreshInterval(interval))
-                        },
-                    )
                     MapLegendPanel(
                         snapshot = data.legend,
                         visibleLayers = data.visibleLayers,
@@ -69,6 +64,12 @@ fun MapScreen(
                         },
                         onToggleGroup = { groupId, enabled ->
                             viewModel.onEvent(MapEvent.ToggleGroup(groupId, enabled))
+                        },
+                    )
+                    MapRefreshPanel(
+                        selected = data.refreshInterval,
+                        onSelect = { interval ->
+                            viewModel.onEvent(MapEvent.SetRefreshInterval(interval))
                         },
                     )
                 }

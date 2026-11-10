@@ -53,9 +53,9 @@
 - [x] U4 — Bottom nav: tab **Карта** (`MainTab.Map`, дефолт после auth). «Профиль» / демо Desktop/Requests убраны из bar (файлы экранов не удалять, entries закомментированы). Тема — Settings overlay. Позже: Свичи.
   Verify: bottom bar показывает «Карта»; нет «Профиль»/«Рабочий стол»/«Заявки»; `ProfileScreen.kt` / `DesktopScreen.kt` / `RequestsScreen.kt` на месте; `MainTab.Map` в `CorporateShell.kt`.
   Изм. 2026-11-10: добавлен tab Карта; демо Desktop/Requests тоже закомментированы в nav.
-- [x] U5 — Сворачиваемая легенда как веб `#legend`: иконка + подпись + count; **чекбоксы** вкл/выкл слои на карте (`visibleLayers` / `ToggleLayer` / `ToggleGroup`) без перезагрузки markgen; данные из OOP-каталога.
-  Verify: `MapLegendPanel` + `CupertinoCheckBox`; снять «Свич доступен» → зелёные свичи пропадают с карты, данные в VM остаются; группа «Коммутаторы» тумблерит все свои layer; нет краша `clickable`/`CupertinoIndication`.
-  Изм. 2026-11-10: добавлены checkbox show/hide как на вебе.
+- [x] U5 — Сворачиваемая легенда как веб `#legend`: иконка + подпись + count; **чекбоксы** вкл/выкл слои на карте (`visibleLayers` / `ToggleLayer` / `ToggleGroup`) без перезагрузки markgen; данные из OOP-каталога. Панели легенды/обновления — **TopStart**, не перекрывают zoom +/- снизу.
+  Verify: `MapLegendPanel` + `CupertinoCheckBox`; снять «Свич доступен» → зелёные свичи пропадают; zoom кнопки снизу справа свободны; нет краша `clickable`/`CupertinoIndication`.
+  Изм. 2026-11-10: checkbox show/hide; панели снизу → TopStart (не кроют зум).
 - [x] U6 — Иконки маркеров на карте совпадают с легендой/markgen: `LeanMapMarker.resolvedIconUrl()` (`icon` с сервера, иначе catalog по `layer`) → osmdroid `Marker.icon` через `MarkerIconCache` (не дефолтный пин).
   Verify: свичи/узлы/wifi на карте цветными PNG с `nos.lds.online/images/map/...`, как в легенде; уникальные URL кэшируются.
 - [x] U7 — Клик по маркеру работает для **всех** типов (sw/uzel/pon/wifi/usil/amp…), не только узлов: InfoWindow с name + type/layer; явный `setOnMarkerClickListener` + `showInfoWindow`.

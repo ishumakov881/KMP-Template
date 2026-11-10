@@ -53,6 +53,8 @@ actual fun NosMapCanvas(
         MapView(context).apply {
             setTileSource(LdsHotTiles)
             setMultiTouchControls(true)
+            // Keep +/- at bottom-right; legend/refresh live at top-start in Compose.
+            setBuiltInZoomControls(true)
             controller.setZoom(11.0)
             controller.setCenter(GeoPoint(48.4422, 39.3544))
         }
