@@ -34,6 +34,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import io.github.alexzhirkevich.cupertino.CupertinoCheckBox
 import io.github.alexzhirkevich.cupertino.CupertinoText
 import io.github.alexzhirkevich.cupertino.theme.CupertinoTheme
 import net.lds.online.network.nos.legend.MapLegendGroupState
@@ -41,11 +42,14 @@ import net.lds.online.network.nos.legend.MapLegendItemState
 import net.lds.online.network.nos.legend.MapLegendSnapshot
 
 /**
- * Floating map legend (web `#legend` / `#more_legend` parity).
+ * Floating map legend with layer toggles (web `#legend` checkboxes).
  */
 @Composable
 fun MapLegendPanel(
     snapshot: MapLegendSnapshot,
+    visibleLayers: Set<String>,
+    onToggleLayer: (leafletLayer: String) -> Unit,
+    onToggleGroup: (groupId: String, enabled: Boolean) -> Unit,
     modifier: Modifier = Modifier,
     initiallyExpanded: Boolean = true,
 ) {
@@ -93,13 +97,18 @@ fun MapLegendPanel(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(220.dp)
+                    .height(260.dp)
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 Spacer(Modifier.height(2.dp))
                 snapshot.groups.forEach { group ->
-                    LegendGroupBlock(group)
+                    LegendGroupBlock(
+                        group = group,
+                        visibleLayers = visibleLayers,
+                        onToggleLayer = onToggleLayer,
+                        onToggleGroup = onToggleGroup,
+                    )
                 }
             }
         }
@@ -107,26 +116,71 @@ fun MapLegendPanel(
 }
 
 @Composable
-private fun LegendGroupBlock(group: MapLegendGroupState) {
+private fun LegendGroupBlock(
+    group: MapLegendGroupState,
+    visibleLayers: Set<String>,
+    onToggleLayer: (String) -> Unit,
+    onToggleGroup: (String, Boolean) -> Unit,
+) {
+    val layers = group.items.mapNotNull { it.item.leafletLayer }
+    val enabledCount = layers.count { it in visibleLayers }
+    val groupChecked = layers.isNotEmpty() && enabledCount == layers.size
+
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        CupertinoText(
-            text = group.group.title,
-            style = CupertinoTheme.typography.footnote.copy(fontWeight = FontWeight.Medium),
-            color = CupertinoTheme.colorScheme.secondaryLabel,
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            if (layers.isNotEmpty()) {
+                CupertinoCheckBox(
+                    checked = groupChecked,
+                    onCheckedChange = { checked ->
+                        onToggleGroup(group.group.id, checked)
+                    },
+                )
+                Spacer(Modifier.width(6.dp))
+            }
+            CupertinoText(
+                text = group.group.title,
+                style = CupertinoTheme.typography.footnote.copy(fontWeight = FontWeight.Medium),
+                color = CupertinoTheme.colorScheme.secondaryLabel,
+            )
+        }
         group.items.forEach { row ->
-            LegendItemRow(row)
+            LegendItemRow(
+                row = row,
+                checked = row.item.leafletLayer?.let { it in visibleLayers } ?: false,
+                onCheckedChange = { enabled ->
+                    val layer = row.item.leafletLayer ?: return@LegendItemRow
+                    val isOn = layer in visibleLayers
+                    if (enabled != isOn) onToggleLayer(layer)
+                },
+            )
         }
     }
 }
 
 @Composable
-private fun LegendItemRow(row: MapLegendItemState) {
+private fun LegendItemRow(
+    row: MapLegendItemState,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
     val item = row.item
+    val canToggle = item.leafletLayer != null
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.fillMaxWidth(),
     ) {
+        if (canToggle) {
+            CupertinoCheckBox(
+                checked = checked,
+                onCheckedChange = onCheckedChange,
+            )
+            Spacer(Modifier.width(6.dp))
+        } else {
+            Spacer(Modifier.width(28.dp))
+        }
         val iconUrl = item.iconUrl()
         if (iconUrl != null) {
             AsyncImage(

@@ -83,11 +83,28 @@ actual fun NosMapCanvas(
             markers.forEach { item ->
                 val marker = Marker(view)
                 marker.position = GeoPoint(item.lat, item.lng)
-                marker.title = item.name.ifBlank { item.layer }
-                marker.snippet = item.layer
-                marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                marker.title = item.name.ifBlank { item.layer.ifBlank { item.type } }
+                marker.snippet = buildString {
+                    append(item.type)
+                    if (item.layer.isNotBlank()) {
+                        if (isNotEmpty()) append(" · ")
+                        append(item.layer)
+                    }
+                }
+                marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                marker.isEnabled = true
+                marker.setInfoWindowAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_TOP)
                 iconCache.drawableFor(item.resolvedIconUrl())?.let { drawable ->
-                    marker.icon = drawable
+                    // Mutate so hit-testing / bounds stay per-marker friendly with shared bitmaps.
+                    marker.icon = drawable.constantState?.newDrawable()?.mutate() ?: drawable
+                }
+                // Explicit for every type (sw/uzel/pon/wifi/…) — same InfoWindow path as web tap.
+                marker.setOnMarkerClickListener { clicked, map ->
+                    map.overlays
+                        .filterIsInstance<Marker>()
+                        .forEach { if (it !== clicked) it.closeInfoWindow() }
+                    clicked.showInfoWindow()
+                    true
                 }
                 view.overlays.add(marker)
             }

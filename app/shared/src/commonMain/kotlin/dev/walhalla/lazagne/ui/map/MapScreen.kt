@@ -44,11 +44,18 @@ fun MapScreen(
         ) { data ->
             Box(Modifier.fillMaxSize()) {
                 NosMapCanvas(
-                    markers = data.markers,
+                    markers = data.visibleMarkers,
                     modifier = Modifier.fillMaxSize(),
                 )
                 MapLegendPanel(
                     snapshot = data.legend,
+                    visibleLayers = data.visibleLayers,
+                    onToggleLayer = { layer ->
+                        viewModel.onEvent(MapEvent.ToggleLayer(layer))
+                    },
+                    onToggleGroup = { groupId, enabled ->
+                        viewModel.onEvent(MapEvent.ToggleGroup(groupId, enabled))
+                    },
                     modifier = Modifier
                         .align(Alignment.BottomStart)
                         .padding(12.dp),
