@@ -60,6 +60,8 @@
   Verify: свичи/узлы/wifi на карте цветными PNG с `nos.lds.online/images/map/...`, как в легенде; уникальные URL кэшируются.
 - [x] U7 — Клик по маркеру работает для **всех** типов (sw/uzel/pon/wifi/usil/amp…), не только узлов: InfoWindow с name + type/layer; явный `setOnMarkerClickListener` + `showInfoWindow`.
   Verify: тап по свичу/wifi/PON открывает bubble так же, как по узлу; HTML `popupContent` пока не показываем (lean).
+- [x] U8 — Блок **Обновление** как веб `#intval` / `#more_intval`: интервалы 10 секунд / 1 минута / 5 минут (default 5 мин = 300000); `setInterval` → `loadData(isRefreshing)`; UI `MapRefreshPanel` рядом с легендой.
+  Verify: свернуть/развернуть «Обновление»; выбрать «10 секунд» — markgen перезапрашивается ~каждые 10с; после смены интервала таймер перезапускается; дефолт 5 минут.
 
 ## D. Данные
 

@@ -1,6 +1,8 @@
 package dev.walhalla.lazagne.ui.map
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -47,19 +49,29 @@ fun MapScreen(
                     markers = data.visibleMarkers,
                     modifier = Modifier.fillMaxSize(),
                 )
-                MapLegendPanel(
-                    snapshot = data.legend,
-                    visibleLayers = data.visibleLayers,
-                    onToggleLayer = { layer ->
-                        viewModel.onEvent(MapEvent.ToggleLayer(layer))
-                    },
-                    onToggleGroup = { groupId, enabled ->
-                        viewModel.onEvent(MapEvent.ToggleGroup(groupId, enabled))
-                    },
+                Column(
                     modifier = Modifier
                         .align(Alignment.BottomStart)
                         .padding(12.dp),
-                )
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    MapRefreshPanel(
+                        selected = data.refreshInterval,
+                        onSelect = { interval ->
+                            viewModel.onEvent(MapEvent.SetRefreshInterval(interval))
+                        },
+                    )
+                    MapLegendPanel(
+                        snapshot = data.legend,
+                        visibleLayers = data.visibleLayers,
+                        onToggleLayer = { layer ->
+                            viewModel.onEvent(MapEvent.ToggleLayer(layer))
+                        },
+                        onToggleGroup = { groupId, enabled ->
+                            viewModel.onEvent(MapEvent.ToggleGroup(groupId, enabled))
+                        },
+                    )
+                }
             }
         }
     }

@@ -1,5 +1,10 @@
 package dev.walhalla.lazagne.ui.map
 
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import net.lds.online.network.nos.LeanMapMarker
 import net.lds.online.network.nos.NosMapRepository
 import net.lds.online.network.nos.legend.MapLegendSnapshot
@@ -14,6 +19,8 @@ data class MapUiData(
     val legend: MapLegendSnapshot = MapLegendSnapshot.Empty,
     /** Leaflet `layer` keys currently shown on the map (web legend checkboxes). */
     val visibleLayers: Set<String> = emptySet(),
+    /** Web `#more_intval` — auto reload interval. */
+    val refreshInterval: MapRefreshInterval = MapRefreshInterval.WebDefault,
 ) {
     val visibleMarkers: List<LeanMapMarker>
         get() = markers.filter { it.layer in visibleLayers }
@@ -28,6 +35,7 @@ sealed interface MapEvent : BaseEvent {
     data object Refresh : MapEvent
     data class ToggleLayer(val leafletLayer: String) : MapEvent
     data class ToggleGroup(val groupId: String, val enabled: Boolean) : MapEvent
+    data class SetRefreshInterval(val interval: MapRefreshInterval) : MapEvent
 }
 
 class MapViewModel(
@@ -36,8 +44,11 @@ class MapViewModel(
     private val enabledTypes: List<String> = NosMapRepository.DEFAULT_MAP_TYPES,
 ) : BaseViewModel<MapUiData, MapEvent>() {
 
+    private var refreshJob: Job? = null
+
     init {
         loadData()
+        restartAutoRefresh(MapRefreshInterval.WebDefault)
     }
 
     override suspend fun onFetchData(): MapUiData {
@@ -62,6 +73,7 @@ class MapViewModel(
             loadedTypes = loaded,
             legend = legend,
             visibleLayers = visibleLayers,
+            refreshInterval = previous?.refreshInterval ?: MapRefreshInterval.WebDefault,
         )
     }
 
@@ -70,10 +82,32 @@ class MapViewModel(
             MapEvent.Refresh -> loadData(isRefreshing = true)
             is MapEvent.ToggleLayer -> toggleLayer(event.leafletLayer)
             is MapEvent.ToggleGroup -> toggleGroup(event.groupId, event.enabled)
+            is MapEvent.SetRefreshInterval -> setRefreshInterval(event.interval)
         }
     }
 
     override fun onConfirmActionWithPassword(pendingEvent: BaseEvent?) = Unit
+
+    override fun onCleared() {
+        refreshJob?.cancel()
+        super.onCleared()
+    }
+
+    private fun setRefreshInterval(interval: MapRefreshInterval) {
+        updateData { it.copy(refreshInterval = interval) }
+        restartAutoRefresh(interval)
+    }
+
+    /** Same as web `setInterval(Refresh, intVal)` after radio change. */
+    private fun restartAutoRefresh(interval: MapRefreshInterval) {
+        refreshJob?.cancel()
+        refreshJob = viewModelScope.launch {
+            while (isActive) {
+                delay(interval.millis)
+                loadData(isRefreshing = true)
+            }
+        }
+    }
 
     private fun toggleLayer(leafletLayer: String) {
         updateData { data ->
