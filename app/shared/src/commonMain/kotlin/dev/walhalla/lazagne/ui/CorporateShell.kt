@@ -37,6 +37,7 @@ import io.github.alexzhirkevich.cupertino.CupertinoText
 import io.github.alexzhirkevich.cupertino.CupertinoTopAppBar
 import io.github.alexzhirkevich.cupertino.ExperimentalCupertinoApi
 import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
+import io.github.alexzhirkevich.cupertino.icons.filled.ListBulletCircle
 import io.github.alexzhirkevich.cupertino.icons.filled.Map
 // import io.github.alexzhirkevich.cupertino.icons.filled.DocText
 // import io.github.alexzhirkevich.cupertino.icons.filled.House
@@ -50,6 +51,7 @@ import io.github.alexzhirkevich.cupertino.icons.outlined.Gearshape
 import io.github.alexzhirkevich.cupertino.icons.outlined.Map
 // import io.github.alexzhirkevich.cupertino.icons.outlined.PersonCropCircle
 import io.github.alexzhirkevich.cupertino.icons.outlined.Plus
+import io.github.alexzhirkevich.cupertino.icons.outlined.ServerRack
 import io.github.alexzhirkevich.cupertino.icons.outlined.SquareAndArrowUp
 import io.github.alexzhirkevich.cupertino.icons.outlined.Trash
 import io.github.alexzhirkevich.cupertino.rememberCupertinoBottomSheetScaffoldState
@@ -65,11 +67,15 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import net.lds.online.network.nos.NosMapRepository
 import dev.walhalla.lazagne.ui.map.MapRoute
+import dev.walhalla.lazagne.ui.switches.SwitchesEvent
+import dev.walhalla.lazagne.ui.switches.SwitchesRoute
+import dev.walhalla.lazagne.ui.switches.SwitchesViewModel
 
 const val AppName = "NOS"
 
 enum class MainTab(val title: String, val icon: ImageVector, val selectedIcon: ImageVector) {
     Map("Карта", CupertinoIcons.Default.Map, CupertinoIcons.Filled.Map),
+    Switches("Свичи", CupertinoIcons.Default.ServerRack, CupertinoIcons.Filled.ListBulletCircle),
     // Демо Desktop/Requests оставляем в файлах, tab убран — целевые: Карта / Свичи.
     // Desktop("Рабочий стол", CupertinoIcons.Default.House, CupertinoIcons.Filled.House),
     // Requests("Заявки", CupertinoIcons.Default.DocText, CupertinoIcons.Filled.DocText),
@@ -114,6 +120,7 @@ fun CorporateShell(
     var stack by remember { mutableStateOf(listOf<Overlay>()) }
     var desktopLoaded by rememberSaveable { mutableStateOf(false) }
     val requestsState = remember { RequestsState() }
+    val switchesViewModel = remember(mapRepository) { SwitchesViewModel(mapRepository) }
     val scope = rememberCoroutineScope()
     val sheetState = rememberCupertinoSheetState()
     val scaffoldState = rememberCupertinoBottomSheetScaffoldState(sheetState)
@@ -169,6 +176,16 @@ fun CorporateShell(
                         Overlay.Settings -> Unit
 
                         null -> {
+                            if (tab == MainTab.Switches) {
+                                CupertinoIconButton(
+                                    onClick = { switchesViewModel.onEvent(SwitchesEvent.Refresh) },
+                                ) {
+                                    CupertinoIcon(
+                                        CupertinoIcons.Default.ArrowClockwise,
+                                        contentDescription = "Обновить",
+                                    )
+                                }
+                            }
                             // Демо Requests actions — tab закомментирован
                             // if (tab == MainTab.Requests) { ... }
                             CupertinoIconButton(onClick = { push(Overlay.Settings) }) {
@@ -209,6 +226,12 @@ fun CorporateShell(
                 MainTab.Map -> MapRoute(
                     mapRepository = mapRepository,
                     padding = padding,
+                )
+
+                MainTab.Switches -> SwitchesRoute(
+                    mapRepository = mapRepository,
+                    padding = padding,
+                    viewModel = switchesViewModel,
                 )
 
                 // MainTab.Desktop -> DesktopScreen(...)

@@ -50,9 +50,12 @@
   Verify: в login и udf UI нет `material3` Button/TextField/OutlinedButton; `app/shared` не тянет `compose-material3` ради экранов.
 - [x] U3 — Веб-«Профиль» NOS (= тема) не дублировать отдельным bottom-tab: настройки уже в тулбаре. В `SettingsScreen` активны блоки «Оформление» и «О приложении»; демо-«Уведомления» закомментированы (не удалены).
   Verify: открыть шестерёнку в тулбаре — видны Оформление + О приложении, секции уведомлений нет; закомментированный блок «Уведомления» остаётся в `SettingsScreen.kt`.
-- [x] U4 — Bottom nav: tab **Карта** (`MainTab.Map`, дефолт после auth). «Профиль» / демо Desktop/Requests убраны из bar (файлы экранов не удалять, entries закомментированы). Тема — Settings overlay. Позже: Свичи.
-  Verify: bottom bar показывает «Карта»; нет «Профиль»/«Рабочий стол»/«Заявки»; `ProfileScreen.kt` / `DesktopScreen.kt` / `RequestsScreen.kt` на месте; `MainTab.Map` в `CorporateShell.kt`.
+- [x] U4 — Bottom nav: tabs **Карта** (`MainTab.Map`, дефолт после auth) и **Свичи** (`MainTab.Switches`). «Профиль» / демо Desktop/Requests убраны из bar (файлы экранов не удалять, entries закомментированы). Тема — Settings overlay.
+  Verify: bottom bar показывает «Карта» и «Свичи»; нет «Профиль»/«Рабочий стол»/«Заявки»; `ProfileScreen.kt` / `DesktopScreen.kt` / `RequestsScreen.kt` на месте; `MainTab.Map` + `MainTab.Switches` в `CorporateShell.kt`.
   Изм. 2026-11-10: добавлен tab Карта; демо Desktop/Requests тоже закомментированы в nav.
+  Изм. 2026-11-10: добавлен tab «Свичи» (веб `/sw`).
+- [x] U9 — Экран **Свичи**: список lean markgen `type=sw` (`NosMapRepository.markgen(TYPE_SW)`); фильтр сегментами Все/OK/DN/LD/NV по `layer_*`; поиск по имени/статусу; иконки как на карте (`resolvedIconUrl`); refresh в тулбаре (ArrowClockwise). Без WebView `/sw`.
+  Verify: tab «Свичи» → список коммутаторов; смена сегмента DN показывает только `layer_dn`; поиск сужает список; иконки зел/красн/жёлт/серые PNG; кнопка обновить в top bar.
 - [x] U5 — Сворачиваемая легенда как веб `#legend`: иконка + подпись + count; **чекбоксы** вкл/выкл слои на карте (`visibleLayers` / `ToggleLayer` / `ToggleGroup`) без перезагрузки markgen; данные из OOP-каталога. Панели легенды/обновления — **TopStart**, не перекрывают zoom +/- снизу.
   Verify: `MapLegendPanel` + `CupertinoCheckBox`; снять «Свич доступен» → зелёные свичи пропадают; zoom кнопки снизу справа свободны; нет краша `clickable`/`CupertinoIndication`.
   Изм. 2026-11-10: checkbox show/hide; панели снизу → TopStart (не кроют зум).
