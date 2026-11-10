@@ -65,6 +65,8 @@
   Изм. 2026-11-10: под каждым устройством mrtg-график как колонка веб-таблицы.
   Изм. 2026-11-10: mrtg без crop — `aspectRatio(647/182)` + `ContentScale.Fit`, не фиксированная высота/`FillWidth`.
   Изм. 2026-11-10: пустые mrtg — Coil `ImageRequest.listener` пишет в logcat `NosMrtg START|OK|ERR|CANCEL` + URL/source/throwable (диагностика, не теория).
+  Изм. 2026-11-10: как веб `/sw/16` (`alt="График временно недосупен!"`) — при 404/ошибке mrtg слот того же `aspectRatio` с заглушкой «График временно недоступен», не дырка в списке.
+  Изм. 2026-11-10: веб всегда ставит `/inc/other/rrd/{ip}/nolegend.png`; часто это **пустой RRD PNG (200)**, не отсутствие файла — `MainActivity` обязан передать `httpClient` в `App` (Coil+Ktor), иначе thumbs не грузятся.
 - [x] U11 — Клик по устройству/mrtg на детали узла открывает экран как веб `/sw/pic/{ip}` (`NosSwRepository.picPage`): список day-графиков; тап по linked-графику → `/sw/pic/{ip}/{n}` (hour/day/week/month/year). Back по стеку. Без WebView.
   Verify: Узлы → сайт → тап строку/график → страница с `*.day.png`; тап day → набор `*.hour/day/week/month/year.png`; данные с `GET /sw/pic/...`, не хардкод списка PNG.
 - [x] U5 — Сворачиваемая легенда как веб `#legend`: иконка + подпись + count; **чекбоксы** вкл/выкл слои на карте (`visibleLayers` / `ToggleLayer` / `ToggleGroup`) без перезагрузки markgen; данные из OOP-каталога. Панели легенды/обновления — **TopStart**, не перекрывают zoom +/- снизу.

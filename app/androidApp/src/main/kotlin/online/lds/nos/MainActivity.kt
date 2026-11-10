@@ -59,6 +59,8 @@ class MainActivity : ComponentActivity() {
                 authRepository = authRepository,
                 mapRepository = mapRepository,
                 swRepository = swRepository,
+                // Same CookieJar as API — Coil loads `/inc/other/rrd/{ip}/nolegend.png` (empty graph PNG ok).
+                httpClient = client,
             )
         }
     }

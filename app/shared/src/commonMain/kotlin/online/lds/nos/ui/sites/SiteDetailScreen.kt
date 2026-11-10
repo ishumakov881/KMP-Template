@@ -3,6 +3,7 @@
 package online.lds.nos.ui.sites
 
 import androidx.compose.foundation.LocalIndication
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -21,7 +22,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -183,6 +186,11 @@ private fun DeviceRow(
             // Web `nolegend.png` is ~647×182 — keep full frame, no top/bottom crop.
             // Loads via singleton Coil + NOS CookieJar (see App.setSingletonImageLoaderFactory).
             val platformContext = LocalPlatformContext.current
+            var mrtgFailed by remember(mrtgUrl) { mutableStateOf(false) }
+            val thumbModifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(MrtgThumbAspectRatio)
+                .clip(RoundedCornerShape(8.dp))
             val request = remember(mrtgUrl) {
                 ImageRequest.Builder(platformContext)
                     .data(mrtgUrl)
@@ -198,21 +206,44 @@ private fun DeviceRow(
                     )
                     .build()
             }
-            AsyncImage(
-                model = request,
-                contentDescription = "mrtg ${device.ip}",
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(MrtgThumbAspectRatio)
-                    .clip(RoundedCornerShape(8.dp)),
-                contentScale = ContentScale.Fit,
-            )
+            // Web keeps <img … alt="График временно недосупен!"> — 404 → same-size stub, not a hole.
+            if (mrtgFailed) {
+                Box(modifier = thumbModifier) { MrtgUnavailableStub() }
+            } else {
+                AsyncImage(
+                    model = request,
+                    contentDescription = "mrtg ${device.ip}",
+                    modifier = thumbModifier,
+                    contentScale = ContentScale.Fit,
+                    onError = { mrtgFailed = true },
+                    onSuccess = { mrtgFailed = false },
+                )
+            }
         }
     }
 }
 
 /** Intrinsic size of NOS `/inc/other/rrd/{ip}/nolegend.png`. */
 private const val MrtgThumbAspectRatio = 647f / 182f
+
+/** Empty chart slot — parity with web broken-img alt on `/sw/{id}`. */
+@Composable
+private fun MrtgUnavailableStub() {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(CupertinoTheme.colorScheme.secondarySystemBackground),
+        contentAlignment = Alignment.Center,
+    ) {
+        CupertinoText(
+            text = "График временно недоступен",
+            style = CupertinoTheme.typography.caption1,
+            color = CupertinoTheme.colorScheme.tertiaryLabel,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(horizontal = 12.dp),
+        )
+    }
+}
 
 @Composable
 private fun EmptyDevicesState() {
