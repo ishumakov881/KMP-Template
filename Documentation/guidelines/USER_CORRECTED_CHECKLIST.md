@@ -19,8 +19,9 @@
   Verify: `Documentation/research/NOS_OSM_API_RECON.md` содержит endpoints (`/ajax/ajaxmap.php` modes/types, тайлы `maps.lds.online/hot/...`), объёмы markgen и вердикт по репо; секреты входа не хранятся в репозитории.
 - [ ] P2 — Нативный Android UI карты допустим поверх текущего NOS API (без ожидания нового бэка): login + `PHPSESSID`, тайлы `maps.lds.online`, маркеры через `ajax/ajaxmap.php`; lean/popup и bbox — улучшения поверх, не блокер старта.
   Verify: в приложении есть экран карты с тайлами LDS и хотя бы одним типом markgen (например `uzel` или `sw`) без WebView страницы `/osm`.
-- [x] P3 — Нативная авторизация = session-login как у веба (POST `login`/`password`/`next` на `/login` → cookie `PHPSESSID` в Ktor CookieJar), не отдельный token/OAuth API; WebView login не обязателен. Успех подтверждается `mode=get_count`.
-  Verify: `NosAuthRepository` в `:kmp:network`; JVM live-тест `NosAuthSessionTest` (env NOS_LOGIN/NOS_PASSWORD) прошёл — PHPSESSID + JSON с `sw_ok`; `LoginViewModel` вызывает login; без WebView.
+- [x] P3 — Нативная авторизация = session-login как у веба: GET `/login` → POST `login`/`password`/`next`/`submit-login` → успех только при **302 на next** (или страница карты без формы входа); cookie `PHPSESSID` в Ktor CookieJar. Не считать успехом выдачу PHPSESSID и не использовать `get_count` как proof (он публичный). Неверный пароль не пускает в приложение.
+  Verify: `NosAuthRepository.login` бросает на «Неверное имя…» / форме входа; после успеха открывается `/osm` без redirect на login; wrong-password тест/ручная проверка не вызывает `onAuthenticated`.
+  Изм. 2026-11-10: было → успех по PHPSESSID+`get_count` (ложный пропуск) → стало → web 302/страница карты.
 - [ ] P4 — Первый продуктовый экран NOS на compose-cupertino (кит из `Начальный промпт.md`): форма авторизации только API Cupertino (section/textField/button/dialog/activityIndicator), без Material.
   Verify: `LoginScreen.kt` использует Cupertino + `ScreenList`; нет material3 виджетов на экране входа; сборка `:app:shared:compileKotlinJvm` ок; on-device smoke login UI.
 

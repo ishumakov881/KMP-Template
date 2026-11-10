@@ -10,10 +10,12 @@
 
 Проверено (curl, 2026-11-10):
 
-- `POST /login` form: `login`, `password`, `next` (hidden, напр. `/osm`)
-- Ответ выставляет `Set-Cookie: PHPSESSID=...; path=/`
-- С этой cookie `POST /ajax/ajaxmap.php` `mode=get_count` → JSON `sw_ok` / `sw_dn` / …
-- В приложении: `NosAuthRepository` + Ktor `HttpCookies` / `AcceptAllCookiesStorage`
+- Сначала `GET /login?next=/osm` (получить PHPSESSID)
+- Затем `POST /login` form: `login`, `password`, `next`, `submit-login`
+- Успех: **302 Location: /osm** (+ дальше карта / leaflet)
+- Ошибка: **200** + форма + `Неверное имя пользователя или пароль.`
+- `PHPSESSID` выдаётся и анонимам; `mode=get_count` отвечает **без** авторизации — нельзя использовать как proof входа
+- В приложении: `NosAuthRepository` + Ktor CookieJar; proof = 302/страница `/osm` без login-form
 
 ---
 

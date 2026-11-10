@@ -15,7 +15,6 @@ data class LoginUiData(
     val errorMessage: String? = null,
     /** Last captured PHPSESSID after successful web-parity login (for debug/verify). */
     val sessionIdPreview: String? = null,
-    val switchCountsPreview: String? = null,
 )
 
 sealed interface LoginEvent : BaseEvent {
@@ -26,7 +25,8 @@ sealed interface LoginEvent : BaseEvent {
 }
 
 /**
- * Cupertino login + NOS session capture (POST /login → PHPSESSID CookieJar → get_count).
+ * Cupertino login + NOS session capture.
+ * Success only after real web flow (GET login → POST → protected /osm), not get_count.
  */
 class LoginViewModel(
     private val onAuthenticated: () -> Unit = {},
@@ -66,7 +66,6 @@ class LoginViewModel(
                     it.copy(
                         isSubmitting = false,
                         sessionIdPreview = result.phpSessionId,
-                        switchCountsPreview = result.switchCountsJson,
                     )
                 }
                 onAuthenticated()
