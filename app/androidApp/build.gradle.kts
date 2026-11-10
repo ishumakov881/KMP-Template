@@ -35,13 +35,30 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+    // Same as ldsonline / Element: secrets from global ~/.gradle/gradle.properties
+    // (KEYSTORE, KEYSTORE_PASSWORD, KEY_ALIAS_LDS, KEY_PASSWORD) — also used as
+    // signing.element.* for lds-chat-element-android release.
+    signingConfigs {
+        create("release") {
+            if (project.hasProperty("KEYSTORE")) {
+                storeFile = file(project.properties["KEYSTORE"] as String)
+                storePassword = project.properties["KEYSTORE_PASSWORD"] as String
+                keyAlias = project.properties["KEY_ALIAS_LDS"] as String
+                keyPassword = project.properties["KEY_PASSWORD"] as String
+            }
+        }
+    }
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("release")
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            signingConfig = signingConfigs.getByName("release")
         }
     }
     compileOptions {

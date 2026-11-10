@@ -85,6 +85,12 @@
 - [x] D3 — Узлы `/sw`: нет JSON-списка — `NosSwRepository` тянет HTML `GET /sw`, `GET /sw/{id}`, `GET /sw/pic/{path}` (тот же CookieJar/сессия), парсит `#s_sw` → `SwSite`, таблицу → `SwDevice`/`SwSitePage`, pic → `SwPicPage`/`SwPicGraph`. Не хардкодить меню/список PNG из HTML-снимка чата.
   Verify: `sites` / `sitePage` / `picPage`; `NosEndpoints.swPic`; парсеры `parseSwSites` / `parseSwSitePage` / `parseSwPicPage`; `SwDevice.mrtgUrl` → `nolegend.png`; UI только через репозиторий.
 
+## B. Сборка
+
+- [x] B1 — Подпись APK debug **и** release через **глобальный** `~/.gradle/gradle.properties`: `KEYSTORE` / `KEYSTORE_PASSWORD` / `KEY_ALIAS_LDS` / `KEY_PASSWORD` (тот же store, что Element `signing.element.*` → `C:/keystore/lds.keystore`). Паттерн как ldsonline: `signingConfigs.release` + оба buildType на него. Секреты/пути **не** в репо и не в `local.properties`.
+  Verify: `app/androidApp/build.gradle.kts` читает `hasProperty("KEYSTORE")`; `assembleDebug`/`assembleRelease` SUCCESS; в репо нет паролей keystore.
+  Изм. 2026-11-10: убран хардкод Desktop `debug.keystore` / `lds.signing.dir` — только global gradle props.
+
 ## X. Процесс
 
 - [x] X1 — Учётные данные NOS (логин/пароль) не коммитить и не писать в документацию репозитория; для исследований использовать только локальную сессию.
