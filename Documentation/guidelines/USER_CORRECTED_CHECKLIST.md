@@ -19,8 +19,10 @@
   Verify: `Documentation/research/NOS_OSM_API_RECON.md` содержит endpoints (`/ajax/ajaxmap.php` modes/types, тайлы `maps.lds.online/hot/...`), объёмы markgen и вердикт по репо; секреты входа не хранятся в репозитории.
 - [ ] P2 — Нативный Android UI карты допустим поверх текущего NOS API (без ожидания нового бэка): login + `PHPSESSID`, тайлы `maps.lds.online`, маркеры через `ajax/ajaxmap.php`; lean/popup и bbox — улучшения поверх, не блокер старта.
   Verify: в приложении есть экран карты с тайлами LDS и хотя бы одним типом markgen (например `uzel` или `sw`) без WebView страницы `/osm`.
-- [ ] P3 — Нативная авторизация = session-login как у веба (POST логин/пароль → cookie `PHPSESSID` в CookieJar OkHttp), не отдельный token/OAuth API; WebView login не обязателен.
-  Verify: приложение логинится без WebView `/login`, сохраняет session cookie и успешно вызывает `ajax/ajaxmap.php`.
+- [x] P3 — Нативная авторизация = session-login как у веба (POST `login`/`password`/`next` на `/login` → cookie `PHPSESSID` в Ktor CookieJar), не отдельный token/OAuth API; WebView login не обязателен. Успех подтверждается `mode=get_count`.
+  Verify: `NosAuthRepository` в `:kmp:network`; JVM live-тест `NosAuthSessionTest` (env NOS_LOGIN/NOS_PASSWORD) прошёл — PHPSESSID + JSON с `sw_ok`; `LoginViewModel` вызывает login; без WebView.
+- [ ] P4 — Первый продуктовый экран NOS на compose-cupertino (кит из `Начальный промпт.md`): форма авторизации только API Cupertino (section/textField/button/dialog/activityIndicator), без Material.
+  Verify: `LoginScreen.kt` использует Cupertino + `ScreenList`; нет material3 виджетов на экране входа; сборка `:app:shared:compileKotlinJvm` ок; on-device smoke login UI.
 
 ## A. Архитектура
 
@@ -28,6 +30,15 @@
   Verify: ответ list/markgen (или клиентский lean-слой) содержит координаты/слой/иконку/статус без HTML; detail-запрос отдельный.
 - [ ] A2 — Загрузка данных карты по требованию слоёв (и далее по viewport/bbox), а не всех типов markgen сразу при открытии экрана.
   Verify: при старте карты не уходят параллельные `markgen` по всем type; запрос типа идёт только для включённого слоя (и/или текущего bbox).
+- [ ] A3 — В проекте есть UDF как в ldsonline: модуль `:kmp:udf` (`BaseViewModel`, `UiState`, `ScreenState`, `BaseScreenLayout` / effects) и зависимости `:kmp:network` (`ApiException`), `:kmp:ldscore` (notifications enums).
+  Verify: `settings.gradle.kts` include `:kmp:udf`; `app/shared` зависит от `:kmp:udf`; login/экраны наследуют `BaseViewModel`.
+
+## U. UI / UX
+
+- [ ] U1 — Responsive layout-токены из ldsonline (`:kmp:ui`: `WindowWidth`, `WebViewportBp`, auth metrics); визуал приложения и login — **Cupertino** (не Material UI с референса). Форма авторизации масштабируется phone/tablet portrait/landscape.
+  Verify: `LoginScreen` на Cupertino (`CupertinoSection`/`CupertinoButton`/`CupertinoText`); `:kmp:udf` ErrorView/loading без Material3; на ≥768 form+aside row, &lt;480 кнопка full width.
+- [ ] U2 — Не копировать Material/Compose UI-скин с ldsonline; источник виджетов — Cupertino в `:app:shared` / `:kmp:udf`.
+  Verify: в login и udf UI нет `material3` Button/TextField/OutlinedButton; `app/shared` не тянет `compose-material3` ради экранов.
 
 ## D. Данные
 

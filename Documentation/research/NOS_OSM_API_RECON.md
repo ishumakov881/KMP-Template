@@ -8,6 +8,13 @@
 
 **Нативный login возможен:** тот же POST логин/пароль + CookieJar (OkHttp) → дальше все ajax с этой cookie. Это не «нет нативной авторизации», а «нет token API» (JWT/OAuth). WebView для входа не обязателен.
 
+Проверено (curl, 2026-11-10):
+
+- `POST /login` form: `login`, `password`, `next` (hidden, напр. `/osm`)
+- Ответ выставляет `Set-Cookie: PHPSESSID=...; path=/`
+- С этой cookie `POST /ajax/ajaxmap.php` `mode=get_count` → JSON `sw_ok` / `sw_dn` / …
+- В приложении: `NosAuthRepository` + Ktor `HttpCookies` / `AcceptAllCookiesStorage`
+
 ---
 
 ## Главный endpoint данных

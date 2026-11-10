@@ -59,6 +59,9 @@ kotlin {
         }
         commonMain.dependencies {
             api(project(":core"))
+            api(project(":kmp:udf"))
+            api(project(":kmp:ui"))
+            api(project(":kmp:network"))
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
             implementation(libs.compose.ui)

@@ -37,3 +37,8 @@ include(":app:shared")
 include(":app:webApp")
 include(":core")
 include(":server")
+
+include(":kmp:network")
+include(":kmp:ldscore")
+include(":kmp:udf")
+include(":kmp:ui")

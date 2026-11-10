@@ -11,6 +11,7 @@ import dev.walhalla.lazagne.ui.CorporateShell
 import dev.walhalla.lazagne.ui.ThemeMode
 import dev.walhalla.lazagne.ui.ThemePrefs
 import dev.walhalla.lazagne.ui.ThemeSettings
+import dev.walhalla.lazagne.ui.auth.LoginRoute
 import io.github.alexzhirkevich.cupertino.theme.CupertinoTheme
 import io.github.alexzhirkevich.cupertino.theme.darkColorScheme
 import io.github.alexzhirkevich.cupertino.theme.lightColorScheme
@@ -19,6 +20,7 @@ import io.github.alexzhirkevich.cupertino.theme.lightColorScheme
 @Preview
 fun App(themeSettings: ThemeSettings? = null) {
     var sessionPrefs by remember { mutableStateOf(ThemePrefs()) }
+    var authenticated by remember { mutableStateOf(false) }
     val prefs = themeSettings?.prefs ?: sessionPrefs
 
     val dark = when (prefs.mode) {
@@ -30,13 +32,17 @@ fun App(themeSettings: ThemeSettings? = null) {
     val colorScheme = if (dark) darkColorScheme(accent = accent) else lightColorScheme(accent = accent)
 
     CupertinoTheme(colorScheme = colorScheme) {
-        CorporateShell(
-            themePrefs = prefs,
-            isDark = dark,
-            onThemePrefsChange = { transform ->
-                if (themeSettings != null) themeSettings.update(transform)
-                else sessionPrefs = transform(sessionPrefs)
-            },
-        )
+        if (!authenticated) {
+            LoginRoute(onAuthenticated = { authenticated = true })
+        } else {
+            CorporateShell(
+                themePrefs = prefs,
+                isDark = dark,
+                onThemePrefsChange = { transform ->
+                    if (themeSettings != null) themeSettings.update(transform)
+                    else sessionPrefs = transform(sessionPrefs)
+                },
+            )
+        }
     }
 }
