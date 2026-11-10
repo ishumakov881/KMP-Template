@@ -32,7 +32,7 @@ kotlin {
     }
     
     android {
-       namespace = "dev.walhalla.lazagne.app.shared"
+       namespace = "online.lds.nos.shared"
        compileSdk = libs.versions.android.compileSdk.get().toInt()
        minSdk = libs.versions.android.minSdk.get().toInt()
     

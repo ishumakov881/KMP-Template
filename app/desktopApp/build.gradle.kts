@@ -17,11 +17,11 @@ dependencies {
 
 compose.desktop {
     application {
-        mainClass = "dev.walhalla.lazagne.MainKt"
+        mainClass = "online.lds.nos.MainKt"
 
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
-            packageName = "dev.walhalla.lazagne"
+            packageName = "online.lds.nos"
             packageVersion = "1.0.0"
         }
     }

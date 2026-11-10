@@ -99,6 +99,8 @@
 
 - [x] B1 — Подпись APK debug **и** release через **глобальный** `~/.gradle/gradle.properties`: `KEYSTORE` / `KEYSTORE_PASSWORD` / `KEY_ALIAS_LDS` / `KEY_PASSWORD` (тот же store, что Element `signing.element.*` → `C:/keystore/lds.keystore`). Паттерн как ldsonline: `signingConfigs.release` + оба buildType на него. Секреты/пути **не** в репо и не в `local.properties`.
   Verify: `app/androidApp/build.gradle.kts` читает `hasProperty("KEYSTORE")`; `assembleDebug`/`assembleRelease` SUCCESS; в репо нет паролей keystore.
+- [x] B2 — Android app id: `namespace` + `applicationId` = `online.lds.nos` (reverse DNS `nos.lds.online`). Исходники `:app:*` перенесены `git mv` `dev/walhalla/lazagne` → `online/lds/nos`, package/import обновлены. `:kmp:*` / `core` / `server` не трогать.
+  Verify: `app/androidApp/build.gradle.kts`; пути `app/**/kotlin/online/lds/nos/**`; манифест `.MainActivity`; установка APK `online.lds.nos`.
   Изм. 2026-11-10: убран хардкод Desktop `debug.keystore` / `lds.signing.dir` — только global gradle props.
 
 ## X. Процесс
