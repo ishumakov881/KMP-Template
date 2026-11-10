@@ -2,6 +2,9 @@
 
 package dev.walhalla.lazagne.ui.sites
 
+import androidx.compose.foundation.LocalIndication
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -54,18 +57,25 @@ fun SiteDetailRoute(
     siteId: Int,
     siteName: String,
     padding: PaddingValues,
+    onOpenPic: (ip: String, titleHint: String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val viewModel = remember(swRepository, siteId) {
         SiteDetailViewModel(swRepository, siteId, siteName)
     }
-    SiteDetailScreen(viewModel = viewModel, padding = padding, modifier = modifier)
+    SiteDetailScreen(
+        viewModel = viewModel,
+        padding = padding,
+        onOpenPic = onOpenPic,
+        modifier = modifier,
+    )
 }
 
 @Composable
 fun SiteDetailScreen(
     viewModel: SiteDetailViewModel,
     padding: PaddingValues,
+    onOpenPic: (ip: String, titleHint: String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsState()
@@ -107,6 +117,7 @@ fun SiteDetailScreen(
                             DeviceRow(
                                 device = device,
                                 modifier = Modifier.padding(itemPadding),
+                                onOpenPic = onOpenPic,
                             )
                         }
                     }
@@ -119,11 +130,23 @@ fun SiteDetailScreen(
 @Composable
 private fun DeviceRow(
     device: SwDevice,
+    onOpenPic: (ip: String, titleHint: String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val interaction = remember { MutableInteractionSource() }
+    val open = {
+        if (device.ip.isNotBlank()) {
+            onOpenPic(device.ip, device.address.ifBlank { device.ip })
+        }
+    }
     Column(
         modifier = modifier
             .fillMaxWidth()
+            .clickable(
+                interactionSource = interaction,
+                indication = LocalIndication.current,
+                onClick = open,
+            )
             .padding(vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {

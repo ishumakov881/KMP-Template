@@ -28,6 +28,15 @@ class NosSwRepository(
         return parseSwSitePage(id, body)
     }
 
+    /** Web `/sw/pic/{path}` — day thumbs or hour/day/week/month/year set. */
+    suspend fun picPage(path: String): SwPicPage {
+        val body = client.get(NosEndpoints.swPic(path)).bodyAsText()
+        if (isLoginHtml(body)) {
+            throw ApiException.clientError(401, "Сессия истекла")
+        }
+        return parseSwPicPage(body)
+    }
+
     private fun isLoginHtml(body: String): Boolean =
         body.contains("Форма авторизации") ||
             body.contains("id=\"signin\"") ||
@@ -54,6 +63,31 @@ internal fun parseSwSitePage(id: Int, html: String): SwSitePage {
     }.toList()
     return SwSitePage(id = id, title = title, devices = devices)
 }
+
+internal fun parseSwPicPage(html: String): SwPicPage {
+    val content = PIC_CONTENT.find(html)?.groupValues?.get(1) ?: html
+    val title = PIC_TITLE.find(content)?.groupValues?.get(1)?.let(::decodeHtml)?.trim().orEmpty()
+    val linked = PIC_LINKED_IMG.findAll(content).map { match ->
+        val href = match.groupValues[1]
+        val src = stripQuery(match.groupValues[2])
+        SwPicGraph(
+            imageUrl = absoluteNosAssetUrl(src),
+            nextPath = href.removePrefix("/sw/pic/").trimStart('/').takeIf { it.isNotBlank() },
+        )
+    }.toList()
+    if (linked.isNotEmpty()) {
+        return SwPicPage(title = title, graphs = linked)
+    }
+    val bare = PIC_BARE_IMG.findAll(content).map { match ->
+        SwPicGraph(
+            imageUrl = absoluteNosAssetUrl(stripQuery(match.groupValues[1])),
+            nextPath = null,
+        )
+    }.toList()
+    return SwPicPage(title = title, graphs = bare)
+}
+
+private fun stripQuery(path: String): String = path.substringBefore('?')
 
 private fun parseDeviceRow(rowHtml: String, down: Boolean): SwDevice? {
     val cells = TD_CELL.findAll(rowHtml).map { it.groupValues[1] }.toList()
@@ -151,5 +185,25 @@ private val MRTG_IMG = Regex(
 
 private val PIC_HREF = Regex(
     """href=['"](/sw/pic/[0-9.]+)['"]""",
+    RegexOption.IGNORE_CASE,
+)
+
+private val PIC_CONTENT = Regex(
+    """id=['"]spin['"][^>]*>([\s\S]*)""",
+    RegexOption.IGNORE_CASE,
+)
+
+private val PIC_TITLE = Regex(
+    """<h2>\s*([\s\S]*?)\s*</h2>""",
+    RegexOption.IGNORE_CASE,
+)
+
+private val PIC_LINKED_IMG = Regex(
+    """<a[^>]*href=['"](/sw/pic/[^'"]+)['"][^>]*>\s*<img[^>]*src=['"]([^'"]+)['"]""",
+    RegexOption.IGNORE_CASE,
+)
+
+private val PIC_BARE_IMG = Regex(
+    """<img[^>]*src=['"]([^'"]*inc/other/rrd/[^'"]+)['"]""",
     RegexOption.IGNORE_CASE,
 )

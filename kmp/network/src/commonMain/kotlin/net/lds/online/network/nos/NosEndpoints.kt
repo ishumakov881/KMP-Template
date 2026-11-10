@@ -8,4 +8,7 @@ object NosEndpoints {
     const val SW = "/sw"
 
     fun swSite(id: Int): String = "$SW/$id"
+
+    /** Web mrtg page: `/sw/pic/{ip}` or `/sw/pic/{ip}/{n}`. */
+    fun swPic(path: String): String = "$SW/pic/${path.trimStart('/')}"
 }

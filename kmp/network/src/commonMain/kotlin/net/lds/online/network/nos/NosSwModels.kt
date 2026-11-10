@@ -34,3 +34,15 @@ data class SwSitePage(
     val title: String,
     val devices: List<SwDevice>,
 )
+
+/** One graph on web `/sw/pic/{ip}` or `/sw/pic/{ip}/{n}`. */
+data class SwPicGraph(
+    val imageUrl: String,
+    /** Relative path under `/sw/pic/` for drill-down (`10.0.x.x/1`), if linked. */
+    val nextPath: String? = null,
+)
+
+data class SwPicPage(
+    val title: String,
+    val graphs: List<SwPicGraph>,
+)

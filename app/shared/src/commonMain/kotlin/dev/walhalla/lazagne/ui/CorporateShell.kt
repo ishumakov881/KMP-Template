@@ -74,6 +74,7 @@ import dev.walhalla.lazagne.ui.sites.SiteDetailRoute
 import dev.walhalla.lazagne.ui.sites.SitesEvent
 import dev.walhalla.lazagne.ui.sites.SitesRoute
 import dev.walhalla.lazagne.ui.sites.SitesViewModel
+import dev.walhalla.lazagne.ui.sites.SwPicRoute
 import dev.walhalla.lazagne.ui.switches.SwitchesEvent
 import dev.walhalla.lazagne.ui.switches.SwitchesRoute
 import dev.walhalla.lazagne.ui.switches.SwitchesViewModel
@@ -96,6 +97,8 @@ sealed interface Overlay {
     data class RequestForm(val request: CorpRequest?, val type: RequestType) : Overlay
     data object Settings : Overlay
     data class SwSiteDetail(val siteId: Int, val siteName: String) : Overlay
+    /** Web `/sw/pic/{path}` — path is `ip` or `ip/n`. */
+    data class SwPicDetail(val path: String, val titleHint: String) : Overlay
 }
 
 @Stable
@@ -160,8 +163,12 @@ fun CorporateShell(
             CupertinoTopAppBar(
                 navigationIcon = {
                     if (top != null) {
-                        val backTitle = (stack.getOrNull(stack.size - 2) as? Overlay.RequestForm)
-                            ?.let { formTitle(it) } ?: tab.title
+                        val backTitle = when (val prev = stack.getOrNull(stack.size - 2)) {
+                            is Overlay.RequestForm -> formTitle(prev)
+                            is Overlay.SwSiteDetail -> prev.siteName.ifBlank { tab.title }
+                            is Overlay.SwPicDetail -> prev.titleHint.ifBlank { tab.title }
+                            else -> tab.title
+                        }
                         CupertinoNavigateBackButton(onClick = pop) {
                             CupertinoText(backTitle, maxLines = 1)
                         }
@@ -173,6 +180,7 @@ fun CorporateShell(
                             is Overlay.RequestForm -> formTitle(top)
                             Overlay.Settings -> "Настройки"
                             is Overlay.SwSiteDetail -> top.siteName.ifBlank { "Узел ${top.siteId}" }
+                            is Overlay.SwPicDetail -> top.titleHint.ifBlank { top.path }
                             null -> AppName
                         },
                         maxLines = 1,
@@ -189,6 +197,8 @@ fun CorporateShell(
                         Overlay.Settings -> Unit
 
                         is Overlay.SwSiteDetail -> Unit
+
+                        is Overlay.SwPicDetail -> Unit
 
                         null -> {
                             if (tab == MainTab.Switches) {
@@ -291,6 +301,19 @@ fun CorporateShell(
                     siteId = target.siteId,
                     siteName = target.siteName,
                     padding = padding,
+                    onOpenPic = { ip, titleHint ->
+                        push(Overlay.SwPicDetail(path = ip, titleHint = titleHint))
+                    },
+                )
+
+                is Overlay.SwPicDetail -> SwPicRoute(
+                    swRepository = swRepository,
+                    path = target.path,
+                    titleHint = target.titleHint,
+                    padding = padding,
+                    onOpenGraph = { path, titleHint ->
+                        push(Overlay.SwPicDetail(path = path, titleHint = titleHint))
+                    },
                 )
             }
         }
