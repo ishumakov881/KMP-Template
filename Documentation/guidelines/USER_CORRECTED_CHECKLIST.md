@@ -64,6 +64,7 @@
   Verify: tab «Узлы» → ~сотни имён вроде `pumba`/`yablochnaya44a` с `/sw/{id}`; открыть узел (напр. `/sw/89`) — список IP + PNG график `/inc/other/rrd/{ip}/nolegend.png` под строкой **целиком** (не обрезан сверху/снизу); красные = down; имена не зашиты в коде.
   Изм. 2026-11-10: под каждым устройством mrtg-график как колонка веб-таблицы.
   Изм. 2026-11-10: mrtg без crop — `aspectRatio(647/182)` + `ContentScale.Fit`, не фиксированная высота/`FillWidth`.
+  Изм. 2026-11-10: пустые mrtg — Coil `ImageRequest.listener` пишет в logcat `NosMrtg START|OK|ERR|CANCEL` + URL/source/throwable (диагностика, не теория).
 - [x] U11 — Клик по устройству/mrtg на детали узла открывает экран как веб `/sw/pic/{ip}` (`NosSwRepository.picPage`): список day-графиков; тап по linked-графику → `/sw/pic/{ip}/{n}` (hour/day/week/month/year). Back по стеку. Без WebView.
   Verify: Узлы → сайт → тап строку/график → страница с `*.day.png`; тап day → набор `*.hour/day/week/month/year.png`; данные с `GET /sw/pic/...`, не хардкод списка PNG.
 - [x] U5 — Сворачиваемая легенда как веб `#legend`: иконка + подпись + count; **чекбоксы** вкл/выкл слои на карте (`visibleLayers` / `ToggleLayer` / `ToggleGroup`) без перезагрузки markgen; данные из OOP-каталога. Панели легенды/обновления — **TopStart**, не перекрывают zoom +/- снизу.

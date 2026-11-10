@@ -29,6 +29,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import coil3.compose.LocalPlatformContext
+import coil3.request.ImageRequest
 import online.lds.nos.ui.ScreenList
 import online.lds.nos.ui.TitleWithSubtitle
 import io.github.alexzhirkevich.cupertino.CupertinoActivityIndicator
@@ -180,8 +182,24 @@ private fun DeviceRow(
         if (mrtgUrl != null) {
             // Web `nolegend.png` is ~647×182 — keep full frame, no top/bottom crop.
             // Loads via singleton Coil + NOS CookieJar (see App.setSingletonImageLoaderFactory).
+            val platformContext = LocalPlatformContext.current
+            val request = remember(mrtgUrl) {
+                ImageRequest.Builder(platformContext)
+                    .data(mrtgUrl)
+                    .listener(
+                        onStart = { println("NosMrtg START $mrtgUrl") },
+                        onSuccess = { _, result ->
+                            println("NosMrtg OK $mrtgUrl source=${result.dataSource}")
+                        },
+                        onError = { _, result ->
+                            println("NosMrtg ERR $mrtgUrl ${result.throwable}")
+                        },
+                        onCancel = { println("NosMrtg CANCEL $mrtgUrl") },
+                    )
+                    .build()
+            }
             AsyncImage(
-                model = mrtgUrl,
+                model = request,
                 contentDescription = "mrtg ${device.ip}",
                 modifier = Modifier
                     .fillMaxWidth()
