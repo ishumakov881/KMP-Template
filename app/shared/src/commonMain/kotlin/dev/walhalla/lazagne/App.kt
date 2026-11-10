@@ -23,7 +23,10 @@ import io.github.alexzhirkevich.cupertino.CupertinoActivityIndicator
 import io.github.alexzhirkevich.cupertino.theme.CupertinoTheme
 import io.github.alexzhirkevich.cupertino.theme.darkColorScheme
 import io.github.alexzhirkevich.cupertino.theme.lightColorScheme
+import io.ktor.client.plugins.cookies.AcceptAllCookiesStorage
 import net.lds.online.network.nos.NosAuthRepository
+import net.lds.online.network.nos.NosMapRepository
+import net.lds.online.network.nos.createNosHttpClient
 
 private sealed interface AuthGate {
     data object Checking : AuthGate
@@ -37,12 +40,21 @@ fun App(
     themeSettings: ThemeSettings? = null,
     appPreferences: AppPreferences? = null,
     authRepository: NosAuthRepository? = null,
+    mapRepository: NosMapRepository? = null,
 ) {
     var sessionPrefs by remember { mutableStateOf(ThemePrefs()) }
     val prefs = themeSettings?.prefs ?: sessionPrefs
 
     val resolvedPrefs = remember(appPreferences) { appPreferences }
-    val resolvedAuth = remember(authRepository) { authRepository ?: NosAuthRepository() }
+    val (resolvedAuth, resolvedMap) = remember(authRepository, mapRepository) {
+        if (authRepository != null && mapRepository != null) {
+            authRepository to mapRepository
+        } else {
+            val cookies = AcceptAllCookiesStorage()
+            val client = createNosHttpClient(cookies = cookies)
+            NosAuthRepository(cookies, client) to NosMapRepository(client)
+        }
+    }
 
     var gate by remember {
         mutableStateOf<AuthGate>(
@@ -105,6 +117,7 @@ fun App(
                     if (themeSettings != null) themeSettings.update(transform)
                     else sessionPrefs = transform(sessionPrefs)
                 },
+                mapRepository = resolvedMap,
             )
         }
     }

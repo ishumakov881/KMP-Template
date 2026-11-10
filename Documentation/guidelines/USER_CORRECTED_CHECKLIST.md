@@ -17,8 +17,9 @@
 
 - [x] P1 — Исследование сервиса `https://nos.lds.online/osm` (карта OSM через `https://maps.lds.online`): зафиксированы используемые HTTP/API endpoints, форматы данных маркеров/точек и вывод, нужен ли доступ к репозиторию NOS для нативной интеграции.
   Verify: `Documentation/research/NOS_OSM_API_RECON.md` содержит endpoints (`/ajax/ajaxmap.php` modes/types, тайлы `maps.lds.online/hot/...`), объёмы markgen и вердикт по репо; секреты входа не хранятся в репозитории.
-- [ ] P2 — Нативный Android UI карты допустим поверх текущего NOS API (без ожидания нового бэка): login + `PHPSESSID`, тайлы `maps.lds.online`, маркеры через `ajax/ajaxmap.php`; lean/popup и bbox — улучшения поверх, не блокер старта.
-  Verify: в приложении есть экран карты с тайлами LDS и хотя бы одним типом markgen (например `uzel` или `sw`) без WebView страницы `/osm`.
+- [x] P2 — Нативный Android UI карты поверх NOS API (удобнее WebView `/osm`): login + `PHPSESSID`, тайлы `maps.lds.online` через **osmdroid** (`expect`/`actual NosMapCanvas`), lean markgen `uzel` через `NosMapRepository` на общем CookieJar с auth; без WebView страницы `/osm`.
+  Verify: tab «Карта» после auth; `NosMapCanvas.android.kt` = osmdroid + XYTileSource `maps.lds.online/hot/`; stub на jvm/ios/js/wasm; `:app:androidApp:compileDebugKotlin` ок; на устройстве видны тайлы + маркеры uzel.
+  Изм. 2026-11-10: зафиксирован osmdroid + expect/actual (не MapLibre, не KMP-osmdroid).
 - [x] P3 — Нативная авторизация = session-login как у веба: GET `/login` → POST `login`/`password`/`next`/`submit-login` → успех только при **302 на next** (или страница карты без формы входа); cookie `PHPSESSID` в Ktor CookieJar. Не считать успехом выдачу PHPSESSID и не использовать `get_count` как proof (он публичный). Неверный пароль не пускает в приложение.
   Verify: `NosAuthRepository.login` бросает на «Неверное имя…» / форме входа; после успеха открывается `/osm` без redirect на login; wrong-password тест/ручная проверка не вызывает `onAuthenticated`.
   Изм. 2026-11-10: было → успех по PHPSESSID+`get_count` (ложный пропуск) → стало → web 302/страница карты.
@@ -30,10 +31,10 @@
 
 ## A. Архитектура
 
-- [ ] A1 — Payload маркеров lean: в списке точек для карты нет тяжёлого `popupContent` (HTML); детали попапа подгружаются отдельно по клику/id.
-  Verify: ответ list/markgen (или клиентский lean-слой) содержит координаты/слой/иконку/статус без HTML; detail-запрос отдельный.
-- [ ] A2 — Загрузка данных карты по требованию слоёв (и далее по viewport/bbox), а не всех типов markgen сразу при открытии экрана.
-  Verify: при старте карты не уходят параллельные `markgen` по всем type; запрос типа идёт только для включённого слоя (и/или текущего bbox).
+- [x] A1 — Payload маркеров lean: в списке точек для карты нет тяжёлого `popupContent` (HTML); parse в `NosMapRepository` с `ignoreUnknownKeys` → `LeanMapMarker` (name/lat/lng/state/layer/icon/type). Детали попапа по клику — позже.
+  Verify: `LeanMapMarker` / `NosMapRepository.parseLeanMarkers` не читают `popupContent` в модель; UI map state = list of `LeanMapMarker`.
+- [x] A2 — Загрузка данных карты по требованию слоёв: при старте карты один `markgen` type=`uzel` (не все types сразу). Дальше — checkbox слоёв / bbox.
+  Verify: `MapViewModel` / `NosMapRepository.markgen(TYPE_UZEL)` — один type; нет параллельных markgen по всем слоям при открытии.
 - [ ] A3 — В проекте есть UDF как в ldsonline: модуль `:kmp:udf` (`BaseViewModel`, `UiState`, `ScreenState`, `BaseScreenLayout` / effects) и зависимости `:kmp:network` (`ApiException`), `:kmp:ldscore` (notifications enums).
   Verify: `settings.gradle.kts` include `:kmp:udf`; `app/shared` зависит от `:kmp:udf`; login/экраны наследуют `BaseViewModel`.
 - [x] A4 — Prefs: один универсальный `AppPreferences(Settings)` с generic get/put/remove и ключами в `companion`; не плодить доменные одноключевые `*SessionStore` / `*Store`. In-memory для Preview/тестов — `InMemorySettings`, не `MapSettings` на проде.
@@ -47,8 +48,9 @@
   Verify: в login и udf UI нет `material3` Button/TextField/OutlinedButton; `app/shared` не тянет `compose-material3` ради экранов.
 - [x] U3 — Веб-«Профиль» NOS (= тема) не дублировать отдельным bottom-tab: настройки уже в тулбаре. В `SettingsScreen` активны блоки «Оформление» и «О приложении»; демо-«Уведомления» закомментированы (не удалены).
   Verify: открыть шестерёнку в тулбаре — видны Оформление + О приложении, секции уведомлений нет; закомментированный блок «Уведомления» остаётся в `SettingsScreen.kt`.
-- [x] U4 — Tab «Профиль» убран из bottom navigation (`MainTab` / `CorporateShell`); демо `ProfileScreen.kt` не удалять. Тема — Settings overlay. Целевые tabs позже: Свичи / Карта (демо Desktop/Requests пока остаются).
-  Verify: в bottom bar нет пункта «Профиль»; файл `ProfileScreen.kt` на месте; `MainTab.Profile` закомментирован в `CorporateShell.kt`.
+- [x] U4 — Bottom nav: tab **Карта** (`MainTab.Map`, дефолт после auth). «Профиль» / демо Desktop/Requests убраны из bar (файлы экранов не удалять, entries закомментированы). Тема — Settings overlay. Позже: Свичи.
+  Verify: bottom bar показывает «Карта»; нет «Профиль»/«Рабочий стол»/«Заявки»; `ProfileScreen.kt` / `DesktopScreen.kt` / `RequestsScreen.kt` на месте; `MainTab.Map` в `CorporateShell.kt`.
+  Изм. 2026-11-10: добавлен tab Карта; демо Desktop/Requests тоже закомментированы в nav.
 
 ## D. Данные
 

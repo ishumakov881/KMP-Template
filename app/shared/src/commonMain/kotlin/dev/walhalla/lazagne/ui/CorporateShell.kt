@@ -37,15 +37,17 @@ import io.github.alexzhirkevich.cupertino.CupertinoText
 import io.github.alexzhirkevich.cupertino.CupertinoTopAppBar
 import io.github.alexzhirkevich.cupertino.ExperimentalCupertinoApi
 import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
-import io.github.alexzhirkevich.cupertino.icons.filled.DocText
-import io.github.alexzhirkevich.cupertino.icons.filled.House
+import io.github.alexzhirkevich.cupertino.icons.filled.Map
+// import io.github.alexzhirkevich.cupertino.icons.filled.DocText
+// import io.github.alexzhirkevich.cupertino.icons.filled.House
 // import io.github.alexzhirkevich.cupertino.icons.filled.PersonCropCircle
 import io.github.alexzhirkevich.cupertino.icons.outlined.ArrowClockwise
 import io.github.alexzhirkevich.cupertino.icons.outlined.DocOnDoc
-import io.github.alexzhirkevich.cupertino.icons.outlined.DocText
+// import io.github.alexzhirkevich.cupertino.icons.outlined.DocText
 import io.github.alexzhirkevich.cupertino.icons.outlined.EllipsisCircle
 import io.github.alexzhirkevich.cupertino.icons.outlined.Gearshape
-import io.github.alexzhirkevich.cupertino.icons.outlined.House
+// import io.github.alexzhirkevich.cupertino.icons.outlined.House
+import io.github.alexzhirkevich.cupertino.icons.outlined.Map
 // import io.github.alexzhirkevich.cupertino.icons.outlined.PersonCropCircle
 import io.github.alexzhirkevich.cupertino.icons.outlined.Plus
 import io.github.alexzhirkevich.cupertino.icons.outlined.SquareAndArrowUp
@@ -61,12 +63,16 @@ import io.github.alexzhirkevich.cupertino.theme.systemRed
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import net.lds.online.network.nos.NosMapRepository
+import dev.walhalla.lazagne.ui.map.MapRoute
 
-const val AppName = "Walhalla Corp"
+const val AppName = "NOS"
 
 enum class MainTab(val title: String, val icon: ImageVector, val selectedIcon: ImageVector) {
-    Desktop("Рабочий стол", CupertinoIcons.Default.House, CupertinoIcons.Filled.House),
-    Requests("Заявки", CupertinoIcons.Default.DocText, CupertinoIcons.Filled.DocText),
+    Map("Карта", CupertinoIcons.Default.Map, CupertinoIcons.Filled.Map),
+    // Демо Desktop/Requests оставляем в файлах, tab убран — целевые: Карта / Свичи.
+    // Desktop("Рабочий стол", CupertinoIcons.Default.House, CupertinoIcons.Filled.House),
+    // Requests("Заявки", CupertinoIcons.Default.DocText, CupertinoIcons.Filled.DocText),
     // Веб-«Профиль» = тема → Settings в тулбаре. Демо ProfileScreen.kt оставляем, tab убран.
     // Profile("Профиль", CupertinoIcons.Default.PersonCropCircle, CupertinoIcons.Filled.PersonCropCircle),
 }
@@ -102,8 +108,9 @@ fun CorporateShell(
     themePrefs: ThemePrefs,
     isDark: Boolean,
     onThemePrefsChange: ((ThemePrefs) -> ThemePrefs) -> Unit,
+    mapRepository: NosMapRepository,
 ) {
-    var tab by rememberSaveable { mutableStateOf(MainTab.Desktop) }
+    var tab by rememberSaveable { mutableStateOf(MainTab.Map) }
     var stack by remember { mutableStateOf(listOf<Overlay>()) }
     var desktopLoaded by rememberSaveable { mutableStateOf(false) }
     val requestsState = remember { RequestsState() }
@@ -162,19 +169,8 @@ fun CorporateShell(
                         Overlay.Settings -> Unit
 
                         null -> {
-                            if (tab == MainTab.Requests) {
-                                CupertinoIconButton(
-                                    onClick = { requestsState.refresh(scope) },
-                                    enabled = !requestsState.refreshing,
-                                ) {
-                                    CupertinoIcon(CupertinoIcons.Default.ArrowClockwise, contentDescription = "Обновить")
-                                }
-                                CupertinoIconButton(
-                                    onClick = { push(Overlay.RequestForm(null, RequestType.Vacation)) },
-                                ) {
-                                    CupertinoIcon(CupertinoIcons.Default.Plus, contentDescription = "Новая заявка")
-                                }
-                            }
+                            // Демо Requests actions — tab закомментирован
+                            // if (tab == MainTab.Requests) { ... }
                             CupertinoIconButton(onClick = { push(Overlay.Settings) }) {
                                 CupertinoIcon(CupertinoIcons.Default.Gearshape, contentDescription = "Настройки")
                             }
@@ -210,21 +206,13 @@ fun CorporateShell(
             transitionSpec = { fadeIn() togetherWith fadeOut() },
         ) { target ->
             when (target) {
-                MainTab.Desktop -> DesktopScreen(
+                MainTab.Map -> MapRoute(
+                    mapRepository = mapRepository,
                     padding = padding,
-                    loaded = desktopLoaded,
-                    onLoaded = { desktopLoaded = true },
-                    recent = requestsState.items.take(3),
-                    onOpenType = { push(Overlay.RequestForm(null, it)) },
-                    onOpenRequest = { push(Overlay.RequestForm(it, it.type)) },
                 )
 
-                MainTab.Requests -> RequestsScreen(
-                    padding = padding,
-                    state = requestsState,
-                    onOpenRequest = { push(Overlay.RequestForm(it, it.type)) },
-                )
-
+                // MainTab.Desktop -> DesktopScreen(...)
+                // MainTab.Requests -> RequestsScreen(...)
                 // MainTab.Profile -> ProfileScreen(padding = padding)
 
                 is Overlay.RequestForm -> RequestFormScreen(
