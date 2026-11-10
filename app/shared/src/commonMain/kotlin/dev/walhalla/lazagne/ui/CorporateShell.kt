@@ -39,14 +39,14 @@ import io.github.alexzhirkevich.cupertino.ExperimentalCupertinoApi
 import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
 import io.github.alexzhirkevich.cupertino.icons.filled.DocText
 import io.github.alexzhirkevich.cupertino.icons.filled.House
-import io.github.alexzhirkevich.cupertino.icons.filled.PersonCropCircle
+// import io.github.alexzhirkevich.cupertino.icons.filled.PersonCropCircle
 import io.github.alexzhirkevich.cupertino.icons.outlined.ArrowClockwise
 import io.github.alexzhirkevich.cupertino.icons.outlined.DocOnDoc
 import io.github.alexzhirkevich.cupertino.icons.outlined.DocText
 import io.github.alexzhirkevich.cupertino.icons.outlined.EllipsisCircle
 import io.github.alexzhirkevich.cupertino.icons.outlined.Gearshape
 import io.github.alexzhirkevich.cupertino.icons.outlined.House
-import io.github.alexzhirkevich.cupertino.icons.outlined.PersonCropCircle
+// import io.github.alexzhirkevich.cupertino.icons.outlined.PersonCropCircle
 import io.github.alexzhirkevich.cupertino.icons.outlined.Plus
 import io.github.alexzhirkevich.cupertino.icons.outlined.SquareAndArrowUp
 import io.github.alexzhirkevich.cupertino.icons.outlined.Trash
@@ -67,7 +67,8 @@ const val AppName = "Walhalla Corp"
 enum class MainTab(val title: String, val icon: ImageVector, val selectedIcon: ImageVector) {
     Desktop("Рабочий стол", CupertinoIcons.Default.House, CupertinoIcons.Filled.House),
     Requests("Заявки", CupertinoIcons.Default.DocText, CupertinoIcons.Filled.DocText),
-    Profile("Профиль", CupertinoIcons.Default.PersonCropCircle, CupertinoIcons.Filled.PersonCropCircle),
+    // Веб-«Профиль» = тема → Settings в тулбаре. Демо ProfileScreen.kt оставляем, tab убран.
+    // Profile("Профиль", CupertinoIcons.Default.PersonCropCircle, CupertinoIcons.Filled.PersonCropCircle),
 }
 
 sealed interface Overlay {
@@ -224,7 +225,7 @@ fun CorporateShell(
                     onOpenRequest = { push(Overlay.RequestForm(it, it.type)) },
                 )
 
-                MainTab.Profile -> ProfileScreen(padding = padding)
+                // MainTab.Profile -> ProfileScreen(padding = padding)
 
                 is Overlay.RequestForm -> RequestFormScreen(
                     padding = padding,

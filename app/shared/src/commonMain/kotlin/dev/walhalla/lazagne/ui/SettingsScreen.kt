@@ -5,22 +5,17 @@ package dev.walhalla.lazagne.ui
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import io.github.alexzhirkevich.cupertino.CupertinoAlertDialog
-import io.github.alexzhirkevich.cupertino.CupertinoCheckBox
 import io.github.alexzhirkevich.cupertino.CupertinoIcon
-import io.github.alexzhirkevich.cupertino.CupertinoSlider
 import io.github.alexzhirkevich.cupertino.CupertinoText
 import io.github.alexzhirkevich.cupertino.ExperimentalCupertinoApi
 import io.github.alexzhirkevich.cupertino.MenuPickerAction
 import io.github.alexzhirkevich.cupertino.default
 import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
 import io.github.alexzhirkevich.cupertino.icons.filled.Paintpalette
-import io.github.alexzhirkevich.cupertino.icons.outlined.Bell
-import io.github.alexzhirkevich.cupertino.icons.outlined.Envelope
 import io.github.alexzhirkevich.cupertino.icons.outlined.Lock
 import io.github.alexzhirkevich.cupertino.icons.outlined.Moon
 import io.github.alexzhirkevich.cupertino.icons.outlined.Paintbrush
@@ -35,13 +30,18 @@ import io.github.alexzhirkevich.cupertino.section.switch
 import io.github.alexzhirkevich.cupertino.theme.CupertinoColors
 import io.github.alexzhirkevich.cupertino.theme.CupertinoTheme
 import io.github.alexzhirkevich.cupertino.theme.systemGray
-import io.github.alexzhirkevich.cupertino.theme.systemGreen
 import io.github.alexzhirkevich.cupertino.theme.systemIndigo
 import io.github.alexzhirkevich.cupertino.theme.systemOrange
-import io.github.alexzhirkevich.cupertino.theme.systemRed
-import kotlin.math.roundToInt
+// import io.github.alexzhirkevich.cupertino.CupertinoCheckBox
+// import io.github.alexzhirkevich.cupertino.CupertinoSlider
+// import io.github.alexzhirkevich.cupertino.icons.outlined.Bell
+// import io.github.alexzhirkevich.cupertino.icons.outlined.Envelope
+// import io.github.alexzhirkevich.cupertino.theme.systemGreen
+// import io.github.alexzhirkevich.cupertino.theme.systemRed
+// import androidx.compose.runtime.mutableFloatStateOf
+// import kotlin.math.roundToInt
 
-private enum class Digest(val title: String) { Daily("Ежедневно"), Weekly("Раз в неделю"), Never("Никогда") }
+// private enum class Digest(val title: String) { Daily("Ежедневно"), Weekly("Раз в неделю"), Never("Никогда") }
 
 @Composable
 fun SettingsScreen(
@@ -51,16 +51,18 @@ fun SettingsScreen(
     onThemePrefsChange: ((ThemePrefs) -> ThemePrefs) -> Unit,
 ) {
     var accentMenuExpanded by remember { mutableStateOf(false) }
-    var digestMenuExpanded by remember { mutableStateOf(false) }
-    var digest by remember { mutableStateOf(Digest.Daily) }
-    var emailNotifications by remember { mutableStateOf(true) }
-    var pushNotifications by remember { mutableStateOf(true) }
-    var volume by remember { mutableFloatStateOf(0.6f) }
+    // Демо-уведомления (не из NOS web «Профиль») — оставлены закомментированными.
+    // var digestMenuExpanded by remember { mutableStateOf(false) }
+    // var digest by remember { mutableStateOf(Digest.Daily) }
+    // var emailNotifications by remember { mutableStateOf(true) }
+    // var pushNotifications by remember { mutableStateOf(true) }
+    // var volume by remember { mutableFloatStateOf(0.6f) }
     var showPolicy by remember { mutableStateOf(false) }
 
     val followSystem = themePrefs.mode == ThemeMode.System
 
     ScreenList(padding) {
+        // Замена веб-«Профиль» (тема): оформление уже в тулбаре Settings.
         section(
             title = { CupertinoText("Оформление".sectionTitle()) },
             caption = { CupertinoText("Тема и акцентный цвет сохраняются между запусками") },
@@ -120,6 +122,7 @@ fun SettingsScreen(
             }
         }
 
+        /*
         section(title = { CupertinoText("Уведомления".sectionTitle()) }) {
             item { rowPadding ->
                 TrailingControlRow(rowPadding, "Письма на почту") {
@@ -155,6 +158,7 @@ fun SettingsScreen(
                 }
             }
         }
+        */
 
         section(title = { CupertinoText("О приложении".sectionTitle()) }) {
             link(

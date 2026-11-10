@@ -1,6 +1,7 @@
 package dev.walhalla.lazagne.ui.auth
 
 import androidx.lifecycle.viewModelScope
+import dev.walhalla.lazagne.data.AppPreferences
 import kotlinx.coroutines.launch
 import net.lds.online.network.ApiException
 import net.lds.online.network.nos.NosAuthRepository
@@ -13,7 +14,6 @@ data class LoginUiData(
     val password: String = "",
     val isSubmitting: Boolean = false,
     val errorMessage: String? = null,
-    /** Last captured PHPSESSID after successful web-parity login (for debug/verify). */
     val sessionIdPreview: String? = null,
 )
 
@@ -24,13 +24,10 @@ sealed interface LoginEvent : BaseEvent {
     data object DismissError : LoginEvent
 }
 
-/**
- * Cupertino login + NOS session capture.
- * Success only after real web flow (GET login → POST → protected /osm), not get_count.
- */
 class LoginViewModel(
     private val onAuthenticated: () -> Unit = {},
-    private val authRepository: NosAuthRepository = NosAuthRepository(),
+    private val authRepository: NosAuthRepository,
+    private val appPreferences: AppPreferences,
 ) : BaseViewModel<LoginUiData, LoginEvent>() {
 
     init {
@@ -62,15 +59,19 @@ class LoginViewModel(
             updateData { it.copy(isSubmitting = true, errorMessage = null) }
             try {
                 val result = authRepository.login(data.login.trim(), data.password)
+                val sessionId = result.phpSessionId
+                    ?: throw ApiException.clientError(401, "Нет PHPSESSID")
+                appPreferences.putString(AppPreferences.KEY_PHPSESSID, sessionId)
                 updateData {
                     it.copy(
                         isSubmitting = false,
-                        sessionIdPreview = result.phpSessionId,
+                        sessionIdPreview = sessionId,
                     )
                 }
                 onAuthenticated()
             } catch (e: Exception) {
                 val api = e as? ApiException ?: ApiException.from(e)
+                appPreferences.remove(AppPreferences.KEY_PHPSESSID)
                 updateData {
                     it.copy(
                         isSubmitting = false,

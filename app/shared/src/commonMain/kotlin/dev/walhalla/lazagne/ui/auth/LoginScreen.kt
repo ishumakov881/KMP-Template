@@ -145,8 +145,16 @@ fun LoginScreen(
 @Composable
 fun LoginRoute(
     onAuthenticated: () -> Unit,
+    authRepository: net.lds.online.network.nos.NosAuthRepository,
+    appPreferences: dev.walhalla.lazagne.data.AppPreferences,
     modifier: Modifier = Modifier,
 ) {
-    val viewModel = remember { LoginViewModel(onAuthenticated) }
+    val viewModel = remember(authRepository, appPreferences) {
+        LoginViewModel(
+            onAuthenticated = onAuthenticated,
+            authRepository = authRepository,
+            appPreferences = appPreferences,
+        )
+    }
     LoginScreen(viewModel = viewModel, modifier = modifier)
 }

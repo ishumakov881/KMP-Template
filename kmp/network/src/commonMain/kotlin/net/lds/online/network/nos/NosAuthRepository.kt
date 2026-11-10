@@ -8,6 +8,8 @@ import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
+import io.ktor.http.Cookie
+import io.ktor.http.CookieEncoding
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.Parameters
@@ -31,6 +33,9 @@ data class NosLoginResult(
  * 2. POST `/login` with `login`/`password`/`next`/`submit-login`
  * 3. Success → **302 Location: /osm** (then map page with leaflet)
  * 4. Failure → **200** login form + `Неверное имя пользователя или пароль.`
+ *
+ * Persistence of PHPSESSID is done outside (russhwolf Settings); use [restoreSession]
+ * on cold start and [login] to obtain a fresh id.
  */
 class NosAuthRepository(
     private val cookies: AcceptAllCookiesStorage = AcceptAllCookiesStorage(),
@@ -67,24 +72,50 @@ class NosAuthRepository(
         }
 
         // 3) Hard check: protected page must open (not bounce to login)
-        val osm = client.get(next)
-        val osmBody = osm.bodyAsText()
+        val osmBody = fetchProtectedPage(next)
         if (isLoginHtml(osmBody)) {
             throw ApiException.clientError(401, "Неверный логин или пароль")
         }
 
         return NosLoginResult(
             phpSessionId = phpSessionId,
-            authenticatedPageMarker = when {
-                "map_osm" in osmBody -> "map_osm"
-                "leaflet" in osmBody.lowercase() -> "leaflet"
-                else -> "authenticated"
-            },
+            authenticatedPageMarker = pageMarker(osmBody),
         )
+    }
+
+    /**
+     * Inject saved PHPSESSID into CookieJar and verify protected page still opens.
+     * @return true if session is still valid.
+     */
+    suspend fun restoreSession(
+        phpSessionId: String,
+        next: String = "/osm",
+    ): Boolean {
+        if (phpSessionId.isBlank()) return false
+        cookies.addCookie(
+            requestUrl = Url(NosEndpoints.BASE_URL),
+            cookie = Cookie(
+                name = "PHPSESSID",
+                value = phpSessionId,
+                encoding = CookieEncoding.RAW,
+                path = "/",
+            ),
+        )
+        val body = fetchProtectedPage(next)
+        return !isLoginHtml(body)
     }
 
     fun close() {
         client.close()
+    }
+
+    private suspend fun fetchProtectedPage(path: String): String =
+        client.get(path).bodyAsText()
+
+    private fun pageMarker(body: String): String = when {
+        "map_osm" in body -> "map_osm"
+        "leaflet" in body.lowercase() -> "leaflet"
+        else -> "authenticated"
     }
 
     private suspend fun assertLoginSucceeded(response: HttpResponse, next: String) {

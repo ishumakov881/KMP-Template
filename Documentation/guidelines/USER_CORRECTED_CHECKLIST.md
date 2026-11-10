@@ -22,6 +22,9 @@
 - [x] P3 — Нативная авторизация = session-login как у веба: GET `/login` → POST `login`/`password`/`next`/`submit-login` → успех только при **302 на next** (или страница карты без формы входа); cookie `PHPSESSID` в Ktor CookieJar. Не считать успехом выдачу PHPSESSID и не использовать `get_count` как proof (он публичный). Неверный пароль не пускает в приложение.
   Verify: `NosAuthRepository.login` бросает на «Неверное имя…» / форме входа; после успеха открывается `/osm` без redirect на login; wrong-password тест/ручная проверка не вызывает `onAuthenticated`.
   Изм. 2026-11-10: было → успех по PHPSESSID+`get_count` (ложный пропуск) → стало → web 302/страница карты.
+- [ ] P5 — Сессия переживает перезапуск приложения: `PHPSESSID` в russhwolf через универсальный `AppPreferences` (ключ `AppPreferences.KEY_PHPSESSID` = `pref_nos_phpsessid`); backend prefs — `SharedPreferencesSettings` файл `nos` (тот же instance, что у `ThemeSettings`); при старте `restoreSession` + проверка `/osm`; протухшая сессия — `remove(KEY_PHPSESSID)` и снова login. Preview — `AppPreferences(InMemorySettings())`.
+  Verify: `MainActivity` → `AppPreferences(prefs)`; нет класса `NosSessionStore`; войти → убить процесс → открыть снова без формы входа (пока серверная сессия жива); после clear prefs или invalid cookie — login снова.
+  Изм. 2026-11-10: было `NosSessionStore` → стало `AppPreferences` + ключ в companion (паттерн ldsonline).
 - [ ] P4 — Первый продуктовый экран NOS на compose-cupertino (кит из `Начальный промпт.md`): форма авторизации только API Cupertino (section/textField/button/dialog/activityIndicator), без Material.
   Verify: `LoginScreen.kt` использует Cupertino + `ScreenList`; нет material3 виджетов на экране входа; сборка `:app:shared:compileKotlinJvm` ок; on-device smoke login UI.
 
@@ -33,6 +36,8 @@
   Verify: при старте карты не уходят параллельные `markgen` по всем type; запрос типа идёт только для включённого слоя (и/или текущего bbox).
 - [ ] A3 — В проекте есть UDF как в ldsonline: модуль `:kmp:udf` (`BaseViewModel`, `UiState`, `ScreenState`, `BaseScreenLayout` / effects) и зависимости `:kmp:network` (`ApiException`), `:kmp:ldscore` (notifications enums).
   Verify: `settings.gradle.kts` include `:kmp:udf`; `app/shared` зависит от `:kmp:udf`; login/экраны наследуют `BaseViewModel`.
+- [x] A4 — Prefs: один универсальный `AppPreferences(Settings)` с generic get/put/remove и ключами в `companion`; не плодить доменные одноключевые `*SessionStore` / `*Store`. In-memory для Preview/тестов — `InMemorySettings`, не `MapSettings` на проде.
+  Verify: есть `data/AppPreferences.kt` и `data/InMemorySettings.kt`; нет `NosSessionStore.kt`; call sites (`App`, `LoginViewModel`, `MainActivity`) используют `AppPreferences` + `KEY_*`.
 
 ## U. UI / UX
 
@@ -40,6 +45,10 @@
   Verify: `LoginScreen` на Cupertino (`CupertinoSection`/`CupertinoButton`/`CupertinoText`); `:kmp:udf` ErrorView/loading без Material3; на ≥768 form+aside row, &lt;480 кнопка full width.
 - [ ] U2 — Не копировать Material/Compose UI-скин с ldsonline; источник виджетов — Cupertino в `:app:shared` / `:kmp:udf`.
   Verify: в login и udf UI нет `material3` Button/TextField/OutlinedButton; `app/shared` не тянет `compose-material3` ради экранов.
+- [x] U3 — Веб-«Профиль» NOS (= тема) не дублировать отдельным bottom-tab: настройки уже в тулбаре. В `SettingsScreen` активны блоки «Оформление» и «О приложении»; демо-«Уведомления» закомментированы (не удалены).
+  Verify: открыть шестерёнку в тулбаре — видны Оформление + О приложении, секции уведомлений нет; закомментированный блок «Уведомления» остаётся в `SettingsScreen.kt`.
+- [x] U4 — Tab «Профиль» убран из bottom navigation (`MainTab` / `CorporateShell`); демо `ProfileScreen.kt` не удалять. Тема — Settings overlay. Целевые tabs позже: Свичи / Карта (демо Desktop/Requests пока остаются).
+  Verify: в bottom bar нет пункта «Профиль»; файл `ProfileScreen.kt` на месте; `MainTab.Profile` закомментирован в `CorporateShell.kt`.
 
 ## D. Данные
 
