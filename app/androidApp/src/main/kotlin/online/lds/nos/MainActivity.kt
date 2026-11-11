@@ -16,6 +16,7 @@ import com.russhwolf.settings.SharedPreferencesSettings
 import online.lds.nos.data.AppPreferences
 import online.lds.nos.ui.ThemeSettings
 import io.ktor.client.plugins.cookies.AcceptAllCookiesStorage
+import net.lds.online.db.createMarkerOfflineStore
 import net.lds.online.network.nos.NosAuthRepository
 import net.lds.online.network.nos.NosMapRepository
 import net.lds.online.network.nos.NosSwRepository
@@ -40,6 +41,7 @@ class MainActivity : ComponentActivity() {
         val authRepository = NosAuthRepository(cookies, client)
         val mapRepository = NosMapRepository(client)
         val swRepository = NosSwRepository(client)
+        val markerOfflineStore = createMarkerOfflineStore(applicationContext)
         val exitToast = Toast.makeText(
             this,
             getString(R.string.press_again_to_exit),
@@ -67,6 +69,7 @@ class MainActivity : ComponentActivity() {
                 swRepository = swRepository,
                 // Same CookieJar as API — Coil loads `/inc/other/rrd/{ip}/nolegend.png` (empty graph PNG ok).
                 httpClient = client,
+                markerOfflineStore = markerOfflineStore,
                 pendingSnmpIp = pendingSnmpIp,
                 onPendingSnmpConsumed = { pendingSnmpIp = null },
             )

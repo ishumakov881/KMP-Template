@@ -25,6 +25,8 @@ kotlin {
             implementation(libs.androidx.room.runtime)
             implementation(libs.androidx.sqlite.bundled)
             implementation(libs.kotlinx.coroutines.core)
+            // LeanMapMarker for RoomMarkerOfflineStore (Room targets only — no js/wasm here).
+            api(project(":kmp:network"))
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)

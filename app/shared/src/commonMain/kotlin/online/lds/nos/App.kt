@@ -51,6 +51,8 @@ fun App(
     swRepository: NosSwRepository? = null,
     /** Same CookieJar client as API — Coil mrtg/pic PNGs need PHPSESSID. */
     httpClient: HttpClient? = null,
+    /** Room on Android/iOS/Desktop; JS/Wasm — [net.lds.online.network.nos.NoOpMarkerOfflineStore] or null. */
+    markerOfflineStore: net.lds.online.network.nos.MarkerOfflineStore? = null,
     /** Deep link / intent: open native SNMP after auth (`/sw/snmp/{ip}`). */
     pendingSnmpIp: String? = null,
     onPendingSnmpConsumed: () -> Unit = {},
@@ -157,6 +159,7 @@ fun App(
                     mapRepository = resolvedMap,
                     swRepository = resolvedSw,
                     appPreferences = prefsForShell,
+                    markerOfflineStore = markerOfflineStore,
                     pendingSnmpIp = pendingSnmpIp,
                     onPendingSnmpConsumed = onPendingSnmpConsumed,
                     onLogout = {

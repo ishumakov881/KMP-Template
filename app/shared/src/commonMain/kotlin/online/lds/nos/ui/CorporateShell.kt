@@ -14,6 +14,7 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -73,7 +74,10 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import net.lds.online.network.nos.NosMapRepository
 import net.lds.online.network.nos.NosSwRepository
+import net.lds.online.network.nos.MarkerOfflineStore
+import net.lds.online.ui.base.UiState
 import online.lds.nos.data.AppPreferences
+import online.lds.nos.ui.map.MapEvent
 import online.lds.nos.ui.map.MapRoute
 import online.lds.nos.ui.map.MapViewModel
 import online.lds.nos.ui.sites.SiteDetailRoute
@@ -138,6 +142,7 @@ fun CorporateShell(
     mapRepository: NosMapRepository,
     swRepository: NosSwRepository,
     appPreferences: AppPreferences,
+    markerOfflineStore: MarkerOfflineStore? = null,
     pendingSnmpIp: String? = null,
     onPendingSnmpConsumed: () -> Unit = {},
     onLogout: () -> Unit = {},
@@ -147,8 +152,8 @@ fun CorporateShell(
     var desktopLoaded by rememberSaveable { mutableStateOf(false) }
     val requestsState = remember { RequestsState() }
     // Keep tab VMs above AnimatedContent so markgen/sites lists survive tab switches.
-    val mapViewModel = remember(mapRepository, appPreferences) {
-        MapViewModel(mapRepository, appPreferences)
+    val mapViewModel = remember(mapRepository, appPreferences, markerOfflineStore) {
+        MapViewModel(mapRepository, appPreferences, offlineStore = markerOfflineStore)
     }
     val switchesViewModel = remember(mapRepository) { SwitchesViewModel(mapRepository) }
     val sitesViewModel = remember(swRepository) { SitesViewModel(swRepository) }
@@ -351,13 +356,25 @@ fun CorporateShell(
                             onSubmitted = pop,
                         )
 
-                        Overlay.Settings -> SettingsScreen(
-                            padding = padding,
-                            themePrefs = themePrefs,
-                            isDark = isDark,
-                            onThemePrefsChange = onThemePrefsChange,
-                            onLogout = onLogout,
-                        )
+                        Overlay.Settings -> {
+                            val mapState by mapViewModel.state.collectAsState()
+                            val offlineOn =
+                                (mapState.contentState as? UiState.Success)
+                                    ?.data?.offlineCacheEnabled
+                                    ?: appPreferences.isOfflineCacheEnabled()
+                            SettingsScreen(
+                                padding = padding,
+                                themePrefs = themePrefs,
+                                isDark = isDark,
+                                onThemePrefsChange = onThemePrefsChange,
+                                offlineCacheEnabled = offlineOn,
+                                offlineCacheAvailable = markerOfflineStore != null,
+                                onOfflineCacheChange = { enabled ->
+                                    mapViewModel.onEvent(MapEvent.SetOfflineCache(enabled))
+                                },
+                                onLogout = onLogout,
+                            )
+                        }
 
                         is Overlay.SwSiteDetail -> SiteDetailRoute(
                             swRepository = swRepository,

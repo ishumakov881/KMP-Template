@@ -28,6 +28,7 @@ import io.github.alexzhirkevich.cupertino.icons.outlined.Moon
 import io.github.alexzhirkevich.cupertino.icons.outlined.Paintbrush
 import io.github.alexzhirkevich.cupertino.icons.outlined.Paintpalette
 import io.github.alexzhirkevich.cupertino.icons.outlined.InfoCircle
+import io.github.alexzhirkevich.cupertino.icons.outlined.Archivebox
 import io.github.alexzhirkevich.cupertino.section.CupertinoLinkIcon
 import io.github.alexzhirkevich.cupertino.section.CupertinoSectionDefaults
 import io.github.alexzhirkevich.cupertino.section.dropdownMenu
@@ -38,6 +39,7 @@ import io.github.alexzhirkevich.cupertino.section.switch
 import io.github.alexzhirkevich.cupertino.theme.CupertinoColors
 import io.github.alexzhirkevich.cupertino.theme.CupertinoTheme
 import io.github.alexzhirkevich.cupertino.theme.systemGray
+import io.github.alexzhirkevich.cupertino.theme.systemGreen
 import io.github.alexzhirkevich.cupertino.theme.systemIndigo
 import io.github.alexzhirkevich.cupertino.theme.systemOrange
 import io.github.alexzhirkevich.cupertino.theme.systemRed
@@ -58,6 +60,9 @@ fun SettingsScreen(
     themePrefs: ThemePrefs,
     isDark: Boolean,
     onThemePrefsChange: ((ThemePrefs) -> ThemePrefs) -> Unit,
+    offlineCacheEnabled: Boolean = false,
+    offlineCacheAvailable: Boolean = false,
+    onOfflineCacheChange: (Boolean) -> Unit = {},
     onLogout: () -> Unit = {},
 ) {
     var accentMenuExpanded by remember { mutableStateOf(false) }
@@ -130,6 +135,28 @@ fun SettingsScreen(
                         },
                     ) { CupertinoText(option.title) }
                 }
+            }
+        }
+
+        if (offlineCacheAvailable) {
+            section(
+                title = { CupertinoText("Данные".sectionTitle()) },
+                caption = {
+                    CupertinoText(
+                        "Офлайн-кэш: карта читает Room, сеть пишет markgen по type. Выкл — только сеть.",
+                    )
+                },
+            ) {
+                switch(
+                    checked = offlineCacheEnabled,
+                    onCheckedChange = onOfflineCacheChange,
+                    icon = {
+                        CupertinoLinkIcon(
+                            CupertinoIcons.Default.Archivebox,
+                            containerColor = CupertinoColors.systemGreen,
+                        )
+                    },
+                ) { CupertinoText("Офлайн-кэш карты") }
             }
         }
 

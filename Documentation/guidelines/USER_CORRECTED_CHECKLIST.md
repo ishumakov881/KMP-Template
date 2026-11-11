@@ -44,9 +44,10 @@
   Verify: `settings.gradle.kts` include `:kmp:udf`; `app/shared` зависит от `:kmp:udf`; login/экраны наследуют `BaseViewModel`.
 - [x] A4 — Prefs: один универсальный `AppPreferences(Settings)` с generic get/put/remove и ключами в `companion`; не плодить доменные одноключевые `*SessionStore` / `*Store`. In-memory для Preview/тестов — `InMemorySettings`, не `MapSettings` на проде.
   Verify: есть `data/AppPreferences.kt` и `data/InMemorySettings.kt`; нет `NosSessionStore.kt`; call sites (`App`, `LoginViewModel`, `MainActivity`) используют `AppPreferences` + `KEY_*`.
-- [ ] A5 — Офлайн-кэш: модуль `:kmp:db` с **Room на всех Room-платформах** (Android + iOS + Desktop JVM, `BundledSQLiteDriver`, без fake-stub DAO). JS/Wasm в модуль не входят — Room туда не портирован. UI читает Flow из DAO; сеть пишет в БД. Флаг `AppPreferences.KEY_OFFLINE_CACHE`: on = DB-first + sync; off = network-only.
-  Verify: `include(":kmp:db")`; `createNosDatabase` на android/jvm/ios; `MarkerDao.replaceType` / `SiteDao.replaceAll`; shared зависит от `:kmp:db` в androidMain/jvmMain/iosMain; `:app:androidApp:assembleDebug` и `:app:desktopApp:compileKotlin` ок.
+- [x] A5 — Офлайн-кэш: модуль `:kmp:db` — **весь Room-код в `commonMain`**, таргеты только Android + iOS + Desktop JVM (`BundledSQLiteDriver`). `RoomMarkerOfflineStore` тоже в `commonMain` db (не копипаста по platform source sets app). JS/Wasm: `NoOpMarkerOfflineStore` в `:kmp:network` (заглушка API). Флаг `AppPreferences.KEY_OFFLINE_CACHE`: on = UI Flow из Room + сеть `replaceType`; off = network-only. Тумблер в Настройках.
+  Verify: `RoomMarkerOfflineStore` только в `kmp/db/.../commonMain`; `NoOpMarkerOfflineStore` для js/wasm; Android/Desktop/iOS создают `RoomMarkerOfflineStore(createNosDatabase().markerDao())`; Settings → «Офлайн-кэш карты»; kill app с cache on → маркеры из Room до сети.
   Изм. 2026-11-11: не заглушка на desktop — тот же Room.
+  Изм. 2026-11-11: store в db commonMain + NoOp для js/wasm; prefs-тумблер + MapViewModel wiring.
 
 ## U. UI / UX
 

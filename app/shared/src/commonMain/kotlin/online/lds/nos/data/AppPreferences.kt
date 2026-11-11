@@ -57,6 +57,13 @@ class AppPreferences(private val settings: Settings) {
         putString(KEY_MAP_HIDDEN_LAYERS, hidden.sorted().joinToString("\n"))
     }
 
+    fun isOfflineCacheEnabled(): Boolean =
+        getBoolean(KEY_OFFLINE_CACHE, defaultValue = false)
+
+    fun setOfflineCacheEnabled(enabled: Boolean) {
+        putBoolean(KEY_OFFLINE_CACHE, enabled)
+    }
+
     companion object {
         const val KEY_PHPSESSID = "pref_nos_phpsessid"
         /** When true: UI reads Room Flow, network writes DAO. When false: network-only. */

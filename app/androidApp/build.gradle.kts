@@ -12,6 +12,8 @@ kotlin {
 }
 dependencies {
     implementation(project(":app:shared"))
+    // Factory createMarkerOfflineStore (Room stays inside :kmp:db).
+    implementation(project(":kmp:db"))
 
     implementation(libs.androidx.activity.compose)
 

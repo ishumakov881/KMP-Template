@@ -19,6 +19,7 @@ import net.lds.online.ui.base.BaseEvent
 import net.lds.online.ui.base.BaseViewModel
 import net.lds.online.ui.base.ScreenState
 import net.lds.online.ui.base.UiState
+import net.lds.online.network.nos.MarkerOfflineStore
 import online.lds.nos.data.AppPreferences
 
 data class MapUiData(
@@ -40,6 +41,8 @@ data class MapUiData(
      * legend toggles stay inactive until the first successful type batch.
      */
     val markersLoading: Boolean = false,
+    /** Prefs [AppPreferences.KEY_OFFLINE_CACHE] when a [MarkerOfflineStore] is available. */
+    val offlineCacheEnabled: Boolean = false,
 ) {
     val visibleMarkers: List<LeanMapMarker>
         get() = markers.filter { it.layer in visibleLayers }
@@ -69,22 +72,26 @@ sealed interface MapEvent : BaseEvent {
     data object DismissMaintenancePrompt : MapEvent
     data class ConfirmEnableMaintenance(val message: String) : MapEvent
     data object DisableMaintenance : MapEvent
+    data class SetOfflineCache(val enabled: Boolean) : MapEvent
 }
 
 class MapViewModel(
     private val mapRepository: NosMapRepository,
     private val appPreferences: AppPreferences,
+    private val offlineStore: MarkerOfflineStore? = null,
     /** Defaults to full web markgen set from `map_osm.js` (sw/uzel/pon/mft/wifi/usil/amp/lines). */
     private val enabledTypes: List<String> = NosMapRepository.DEFAULT_MAP_TYPES,
 ) : BaseViewModel<MapUiData, MapEvent>() {
 
     private var refreshJob: Job? = null
     private var loadJob: Job? = null
+    private var offlineObserveJob: Job? = null
     private val mergeMutex = Mutex()
 
     init {
         // Shell first (tiles + legend stub), then stream markgen types like the web map.
         _state.value = ScreenState(contentState = UiState.Success(emptyShell()))
+        if (isOfflineEnabled()) startOfflineObserve()
         loadMarkersProgressive(isRefreshing = false)
         restartAutoRefresh(MapRefreshInterval.WebDefault)
     }
@@ -139,6 +146,7 @@ class MapViewModel(
             }
             is MapEvent.ConfirmEnableMaintenance -> setMaintenance(enabled = true, message = event.message)
             MapEvent.DisableMaintenance -> setMaintenance(enabled = false, message = "")
+            is MapEvent.SetOfflineCache -> setOfflineCache(event.enabled)
         }
     }
 
@@ -147,7 +155,46 @@ class MapViewModel(
     override fun onCleared() {
         loadJob?.cancel()
         refreshJob?.cancel()
+        offlineObserveJob?.cancel()
         super.onCleared()
+    }
+
+    private fun isOfflineEnabled(): Boolean =
+        offlineStore != null && appPreferences.isOfflineCacheEnabled()
+
+    private fun setOfflineCache(enabled: Boolean) {
+        if (offlineStore == null) {
+            updateData { it.copy(offlineCacheEnabled = false) }
+            return
+        }
+        appPreferences.setOfflineCacheEnabled(enabled)
+        updateData { it.copy(offlineCacheEnabled = enabled) }
+        if (enabled) {
+            startOfflineObserve()
+            loadMarkersProgressive(isRefreshing = true)
+        } else {
+            offlineObserveJob?.cancel()
+            offlineObserveJob = null
+        }
+    }
+
+    private fun startOfflineObserve() {
+        val store = offlineStore ?: return
+        offlineObserveJob?.cancel()
+        offlineObserveJob = viewModelScope.launch {
+            store.observeAll().collect { cached ->
+                mergeMutex.withLock {
+                    val previous = currentDataOrNull() ?: emptyShell()
+                    val next = buildData(
+                        previous = previous,
+                        markers = cached,
+                        loadedTypes = cached.map { it.type }.toSet(),
+                        markersLoading = previous.markersLoading && cached.isEmpty(),
+                    )
+                    _state.value = _state.value.copy(contentState = UiState.Success(next))
+                }
+            }
+        }
     }
 
     private fun setRefreshInterval(interval: MapRefreshInterval) {
@@ -235,6 +282,7 @@ class MapViewModel(
             legend = legend,
             visibleLayers = visibleLayersFromPrefs(allLayers),
             markersLoading = true,
+            offlineCacheEnabled = isOfflineEnabled(),
         )
     }
 
@@ -249,7 +297,12 @@ class MapViewModel(
         appPreferences.putMapHiddenLayers(hidden)
     }
 
-    private fun applyTypeBatch(type: String, batch: List<LeanMapMarker>) {
+    private suspend fun applyTypeBatch(type: String, batch: List<LeanMapMarker>) {
+        if (isOfflineEnabled()) {
+            offlineStore?.replaceType(type, batch)
+            // UI comes from Room Flow when offline cache is on.
+            return
+        }
         val previous = currentDataOrNull() ?: emptyShell()
         val markers = previous.markers.filter { it.type != type } + batch
         val loaded = previous.loadedTypes + type
@@ -292,6 +345,7 @@ class MapViewModel(
             refreshInterval = previous.refreshInterval,
             selectedMarker = selected,
             markersLoading = markersLoading,
+            offlineCacheEnabled = previous.offlineCacheEnabled,
         )
     }
 
@@ -325,15 +379,22 @@ class MapViewModel(
         viewModelScope.launch {
             runCatching { mapRepository.setMaintenance(id, enabled, message) }
                 .onSuccess {
-                    updateData { data ->
-                        val updated = marker.copy(
-                            maintenanceActive = enabled,
-                            maintenanceText = message.takeIf { enabled && it.isNotBlank() },
-                        )
-                        data.copy(
-                            markers = data.markers.map { if (it.samePointAs(marker)) updated else it },
-                            selectedMarker = updated,
-                        )
+                    val updated = marker.copy(
+                        maintenanceActive = enabled,
+                        maintenanceText = message.takeIf { enabled && it.isNotBlank() },
+                    )
+                    if (isOfflineEnabled()) {
+                        offlineStore?.upsert(updated)
+                        updateData { it.copy(selectedMarker = updated) }
+                    } else {
+                        updateData { data ->
+                            data.copy(
+                                markers = data.markers.map {
+                                    if (it.samePointAs(marker)) updated else it
+                                },
+                                selectedMarker = updated,
+                            )
+                        }
                     }
                 }
                 .onFailure { e ->
