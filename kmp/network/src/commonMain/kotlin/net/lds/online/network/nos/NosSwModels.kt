@@ -46,3 +46,26 @@ data class SwPicPage(
     val title: String,
     val graphs: List<SwPicGraph>,
 )
+
+/** One port row from web `ajaxsnmp.php` `mode=new_port_description`. */
+data class SwSnmpPort(
+    val index: Int,
+    val name: String,
+    val type: String,
+    val vlan: String,
+    val description: String,
+    val tag: String,
+    /** Web `bgcolor` on port cell (e.g. Gray when down). */
+    val bgColor: String?,
+)
+
+/** Native SNMP detail — same data as web `/sw/snmp/{ip}` + ajaxsnmp. */
+data class SwSnmpPage(
+    val ip: String,
+    val nbId: String,
+    /** From `mode=label_off` HTML label (tags stripped). */
+    val label: String,
+    val freePorts: List<Int>,
+    val freeCount: Int,
+    val ports: List<SwSnmpPort>,
+)

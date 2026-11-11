@@ -78,6 +78,7 @@ import online.lds.nos.ui.sites.SiteDetailRoute
 import online.lds.nos.ui.sites.SitesEvent
 import online.lds.nos.ui.sites.SitesRoute
 import online.lds.nos.ui.sites.SitesViewModel
+import online.lds.nos.ui.sites.SnmpRoute
 import online.lds.nos.ui.sites.SwPicRoute
 import online.lds.nos.ui.switches.SwitchesEvent
 import online.lds.nos.ui.switches.SwitchesRoute
@@ -103,6 +104,7 @@ sealed interface Overlay {
     data class SwSiteDetail(val siteId: Int, val siteName: String) : Overlay
     /** Web `/sw/pic/{path}` — path is `ip` or `ip/n`. */
     data class SwPicDetail(val path: String, val titleHint: String) : Overlay
+    data class SwSnmpDetail(val ip: String) : Overlay
 }
 
 @Stable
@@ -180,6 +182,7 @@ fun CorporateShell(
                             is Overlay.RequestForm -> formTitle(prev)
                             is Overlay.SwSiteDetail -> prev.siteName.ifBlank { tab.title }
                             is Overlay.SwPicDetail -> prev.titleHint.ifBlank { tab.title }
+                            is Overlay.SwSnmpDetail -> prev.ip
                             else -> tab.title
                         }
                         CupertinoNavigateBackButton(onClick = pop) {
@@ -194,6 +197,7 @@ fun CorporateShell(
                             Overlay.Settings -> "Настройки"
                             is Overlay.SwSiteDetail -> top.siteName.ifBlank { "Узел ${top.siteId}" }
                             is Overlay.SwPicDetail -> top.titleHint.ifBlank { top.path }
+                            is Overlay.SwSnmpDetail -> "SNMP ${top.ip}"
                             null -> AppName
                         },
                         maxLines = 1,
@@ -212,6 +216,8 @@ fun CorporateShell(
                         is Overlay.SwSiteDetail -> Unit
 
                         is Overlay.SwPicDetail -> Unit
+
+                        is Overlay.SwSnmpDetail -> Unit
 
                         null -> {
                             if (tab == MainTab.Switches) {
@@ -280,6 +286,9 @@ fun CorporateShell(
                     onOpenSite = { siteId, siteName ->
                         push(Overlay.SwSiteDetail(siteId = siteId, siteName = siteName))
                     },
+                    onOpenSnmp = { ip ->
+                        push(Overlay.SwSnmpDetail(ip = ip))
+                    },
                 )
             }
             TabKeepAlive(visible = top == null && tab == MainTab.Switches) {
@@ -343,6 +352,12 @@ fun CorporateShell(
                             onOpenGraph = { path, titleHint ->
                                 push(Overlay.SwPicDetail(path = path, titleHint = titleHint))
                             },
+                        )
+
+                        is Overlay.SwSnmpDetail -> SnmpRoute(
+                            swRepository = swRepository,
+                            ip = target.ip,
+                            padding = padding,
                         )
                     }
                 }

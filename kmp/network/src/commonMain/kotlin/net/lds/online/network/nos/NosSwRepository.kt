@@ -1,8 +1,16 @@
 package net.lds.online.network.nos
 
 import io.ktor.client.HttpClient
+import io.ktor.client.request.forms.submitForm
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
+import io.ktor.http.Parameters
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.intOrNull
 import net.lds.online.network.ApiException
 
 /**
@@ -12,6 +20,8 @@ import net.lds.online.network.ApiException
 class NosSwRepository(
     private val client: HttpClient,
 ) {
+    private val json = Json { ignoreUnknownKeys = true; isLenient = true }
+
     suspend fun sites(): List<SwSite> {
         val body = client.get(NosEndpoints.SW).bodyAsText()
         if (isLoginHtml(body)) {
@@ -35,6 +45,60 @@ class NosSwRepository(
             throw ApiException.clientError(401, "Сессия истекла")
         }
         return parseSwPicPage(body)
+    }
+
+    /**
+     * Native SNMP detail (web `/sw/snmp/{ip}` without browser):
+     * shell HTML → `nb_id`, then `ajaxsnmp.php` `label_off` + `new_port_description`.
+     */
+    suspend fun snmpPage(ip: String): SwSnmpPage {
+        val shell = client.get(NosEndpoints.swSnmp(ip)).bodyAsText()
+        if (isLoginHtml(shell)) {
+            throw ApiException.clientError(401, "Сессия истекла")
+        }
+        val nbId = NB_ID_HIDDEN.find(shell)?.groupValues?.get(1)
+            ?: throw ApiException.clientError(404, "Нет nb_id для SNMP $ip")
+
+        val labelResponse = client.submitForm(
+            url = NosEndpoints.AJAX_SNMP,
+            formParameters = Parameters.build {
+                append("mode", "label_off")
+                append("ip", ip)
+            },
+        ).bodyAsText()
+        val labelHtml = (json.parseToJsonElement(labelResponse) as? JsonObject)
+            ?.get("label")
+            ?.let { (it as? JsonPrimitive)?.contentOrNull }
+            .orEmpty()
+
+        val portsResponse = client.submitForm(
+            url = NosEndpoints.AJAX_SNMP,
+            formParameters = Parameters.build {
+                append("mode", "new_port_description")
+                append("nb_id", nbId)
+                append("ip", ip)
+                append("online", "false")
+            },
+        ).bodyAsText()
+        val portsObj = json.parseToJsonElement(portsResponse) as? JsonObject
+            ?: throw ApiException.clientError(502, "Пустой ответ SNMP ports")
+        val portsHtml = (portsObj["ports"] as? JsonPrimitive)?.contentOrNull.orEmpty()
+        val free = (portsObj["free"] as? JsonArray)?.mapNotNull { el ->
+            (el as? JsonPrimitive)?.intOrNull
+                ?: (el as? JsonPrimitive)?.contentOrNull?.toIntOrNull()
+        }.orEmpty()
+        val freeCount = (portsObj["free_count"] as? JsonPrimitive)?.intOrNull
+            ?: (portsObj["free_count"] as? JsonPrimitive)?.contentOrNull?.toIntOrNull()
+            ?: free.size
+
+        return SwSnmpPage(
+            ip = ip,
+            nbId = nbId,
+            label = htmlToPlain(labelHtml),
+            freePorts = free,
+            freeCount = freeCount,
+            ports = parseSnmpPortsHtml(portsHtml),
+        )
     }
 
     private fun isLoginHtml(body: String): Boolean =
@@ -207,3 +271,51 @@ private val PIC_BARE_IMG = Regex(
     """<img[^>]*src=['"]([^'"]*inc/other/rrd/[^'"]+)['"]""",
     RegexOption.IGNORE_CASE,
 )
+
+private val NB_ID_HIDDEN = Regex(
+    """id=['"]nb_id['"]\s+value=['"](\d+)['"]""",
+    RegexOption.IGNORE_CASE,
+)
+
+private val SNMP_PORT_ROW = Regex(
+    """<tr\b[^>]*>([\s\S]*?)</tr>""",
+    RegexOption.IGNORE_CASE,
+)
+
+private val SNMP_PORT_INDEX = Regex(
+    """id=['"]l_(\d+)['"]""",
+    RegexOption.IGNORE_CASE,
+)
+
+private val SNMP_PORT_BG = Regex(
+    """bgcolor=['"]([^'"]+)['"]""",
+    RegexOption.IGNORE_CASE,
+)
+
+internal fun parseSnmpPortsHtml(portsHtml: String): List<SwSnmpPort> =
+    SNMP_PORT_ROW.findAll(portsHtml).mapNotNull { match ->
+        val row = match.groupValues[1]
+        val index = SNMP_PORT_INDEX.find(row)?.groupValues?.get(1)?.toIntOrNull()
+            ?: return@mapNotNull null
+        val cells = TD_CELL.findAll(row).map { plainText(it.groupValues[1]) }.toList()
+        // checkbox | name | type | vlan | description | tag
+        SwSnmpPort(
+            index = index,
+            name = cells.getOrNull(1).orEmpty(),
+            type = cells.getOrNull(2).orEmpty(),
+            vlan = cells.getOrNull(3).orEmpty(),
+            description = cells.getOrNull(4).orEmpty(),
+            tag = cells.getOrNull(5).orEmpty(),
+            bgColor = SNMP_PORT_BG.find(row)?.groupValues?.get(1),
+        )
+    }.toList()
+
+internal fun htmlToPlain(html: String): String =
+    decodeHtml(
+        html
+            .replace(Regex("""<(br|/br|BR)\s*/?>""", RegexOption.IGNORE_CASE), "\n")
+            .replace(Regex("<[^>]+>"), " "),
+    )
+        .replace(Regex("[ \\t]+"), " ")
+        .replace(Regex(" *\\n *"), "\n")
+        .trim()

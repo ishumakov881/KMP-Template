@@ -15,13 +15,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
 import io.github.alexzhirkevich.cupertino.CupertinoAlertDialog
 import io.github.alexzhirkevich.cupertino.CupertinoText
 import io.github.alexzhirkevich.cupertino.ExperimentalCupertinoApi
 import io.github.alexzhirkevich.cupertino.default
-import net.lds.online.network.nos.NosEndpoints
 import net.lds.online.network.nos.NosMapRepository
 import net.lds.online.ui.base.BaseScreenLayout
 import net.lds.online.ui.base.UiState
@@ -32,6 +30,7 @@ fun MapRoute(
     padding: PaddingValues,
     onOpenPic: (ip: String, titleHint: String) -> Unit = { _, _ -> },
     onOpenSite: (siteId: Int, siteName: String) -> Unit = { _, _ -> },
+    onOpenSnmp: (ip: String) -> Unit = {},
     viewModel: MapViewModel = remember(mapRepository) { MapViewModel(mapRepository) },
     modifier: Modifier = Modifier,
 ) {
@@ -40,6 +39,7 @@ fun MapRoute(
         padding = padding,
         onOpenPic = onOpenPic,
         onOpenSite = onOpenSite,
+        onOpenSnmp = onOpenSnmp,
         modifier = modifier,
     )
 }
@@ -50,10 +50,10 @@ fun MapScreen(
     padding: PaddingValues,
     onOpenPic: (ip: String, titleHint: String) -> Unit,
     onOpenSite: (siteId: Int, siteName: String) -> Unit,
+    onOpenSnmp: (ip: String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsState()
-    val uriHandler = LocalUriHandler.current
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -116,7 +116,8 @@ fun MapScreen(
                         },
                         onOpenSnmp = {
                             val ip = marker.ip ?: return@MapMarkerPopup
-                            uriHandler.openUri("${NosEndpoints.BASE_URL}sw/snmp/$ip")
+                            viewModel.onEvent(MapEvent.DismissPopup)
+                            onOpenSnmp(ip)
                         },
                         onRequestEnableMaintenance = {
                             viewModel.onEvent(MapEvent.RequestEnableMaintenance)

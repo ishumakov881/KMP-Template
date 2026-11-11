@@ -75,9 +75,11 @@
   Изм. 2026-11-10: checkbox show/hide; панели снизу → TopStart (не кроют зум).
 - [x] U6 — Иконки маркеров на карте совпадают с легендой/markgen: `LeanMapMarker.resolvedIconUrl()` (`icon` с сервера, иначе catalog по `layer`) → osmdroid `Marker.icon` через `MarkerIconCache` (не дефолтный пин).
   Verify: свичи/узлы/wifi на карте цветными PNG с `nos.lds.online/images/map/...`, как в легенде; уникальные URL кэшируются.
-- [x] U7 — Клик по маркеру (все типы sw/uzel/pon/wifi/…) открывает попап паритета вебу: поля IP/узел/место/модель; **Ping** (`ajaxping`); **Графики** → `/sw/pic/{ip}`; **Узел** → `/sw/{id}`; **SNMP** → браузер `/sw/snmp/{ip}`; **техработы** (`maintenance` + комментарий).
-  Verify: тап маркер → нижний `MapMarkerPopup`; Ping показывает диалог с ответом; Графики/Узел уходят в существующие overlay; техработы ставятся/снимаются.
+- [ ] U7 — Клик по маркеру (все типы sw/uzel/pon/wifi/…) открывает попап паритета вебу: поля IP/узел/место/модель; **Ping** (`ajaxping`); **Графики** → `/sw/pic/{ip}`; **Узел** → `/sw/{id}`; **SNMP** — те же данные, что веб тянет в UI (`GET /sw/snmp/{ip}` shell + `ajax/ajaxsnmp.php`: на open как веб `LabelOff`→`mode=label_off`, `Ports`→`mode=new_port_description`), показ в **своём** Compose UI (`SnmpScreen`), **не** WebView и не браузер; **техработы** (`maintenance` + комментарий).
+  Verify: тап маркер → SNMP → нативный список портов + label/free из ajaxsnmp; в коде нет `openUri(.../sw/snmp/)`; Ping/Графики/Узел/техработы как раньше.
   Изм. 2026-11-10: было bare InfoWindow name/type → полный попап как веб.
+  Изм. 2026-11-11: SNMP не в браузер — `Overlay.SwSnmpDetail` + `NosSwRepository.snmpPage`.
+  Изм. 2026-11-11: принцип — веб-UI только подтягивает ajax; мобильный UI подтягивает **те же** mode’ы, свой экран.
 - [ ] U16 — Попап маркера: **Копировать** (буфер) и **Поделиться** (системный share sheet) — plain text только из реальных полей `LeanMapMarker` / `formatShareText()` (имя/тип/слой/IP/узел/место/модель/серийник/MAC/техработы/координаты + URL `/sw/{id}`, `/sw/pic/{ip}`, `/sw/snmp/{ip}` если ключи есть). Ничего не выдумывать. Фича mobile, на вебе её нет.
   Verify: тап маркер → «Копировать»/«Поделиться»; в тексте есть IP/узел если они на маркере; пустых выдуманных полей нет; Android share sheet открывается.
 - [x] U8 — Блок **Обновление** как веб `#intval` / `#more_intval`: интервалы 10 секунд / 1 минута / 5 минут (default 5 мин = 300000); `setInterval` → `loadData(isRefreshing)`; UI `MapRefreshPanel` рядом с легендой.
