@@ -5,8 +5,11 @@ package online.lds.nos.ui.map
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
@@ -16,7 +19,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
 import io.github.alexzhirkevich.cupertino.CupertinoActivityIndicator
 import io.github.alexzhirkevich.cupertino.CupertinoAlertDialog
 import io.github.alexzhirkevich.cupertino.CupertinoButton
@@ -29,6 +34,7 @@ import io.github.alexzhirkevich.cupertino.default
 import io.github.alexzhirkevich.cupertino.destructive
 import io.github.alexzhirkevich.cupertino.theme.CupertinoTheme
 import net.lds.online.network.nos.LeanMapMarker
+import net.lds.online.network.nos.resolvedIconUrl
 
 /**
  * Web Leaflet popup parity: details + ping / snmp / node / graphs / maintenance.
@@ -64,6 +70,16 @@ fun MapMarkerPopup(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                val iconUrl = remember(marker) { marker.resolvedIconUrl() }
+                if (iconUrl != null) {
+                    AsyncImage(
+                        model = iconUrl,
+                        contentDescription = marker.layer.ifBlank { marker.type },
+                        modifier = Modifier.size(28.dp),
+                        contentScale = ContentScale.Fit,
+                    )
+                    Spacer(Modifier.width(10.dp))
+                }
                 CupertinoText(
                     text = marker.name.ifBlank { "Маркер" },
                     style = CupertinoTheme.typography.headline,
