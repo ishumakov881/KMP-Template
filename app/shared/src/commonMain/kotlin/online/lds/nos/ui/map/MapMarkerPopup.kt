@@ -46,6 +46,9 @@ fun MapMarkerPopup(
     onDisableMaintenance: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val textShare = rememberTextShare()
+    val shareText = remember(marker) { marker.formatShareText() }
+    var copiedHint by remember(marker) { mutableStateOf(false) }
     CupertinoSurface(
         modifier = modifier.fillMaxWidth(),
         color = CupertinoTheme.colorScheme.secondarySystemGroupedBackground,
@@ -140,6 +143,28 @@ fun MapMarkerPopup(
                         if (marker.maintenanceActive) "Снять техработы" else "Техработы",
                     )
                 }
+            }
+
+            // Mobile-only (not on web): share real marker fields to apps / clipboard.
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                CupertinoButton(
+                    onClick = {
+                        textShare.copy(shareText)
+                        copiedHint = true
+                    },
+                    colors = CupertinoButtonDefaults.tintedButtonColors(),
+                    modifier = Modifier.weight(1f),
+                ) {
+                    CupertinoText(if (copiedHint) "Скопировано" else "Копировать")
+                }
+                CupertinoButton(
+                    onClick = { textShare.share(shareText) },
+                    colors = CupertinoButtonDefaults.tintedButtonColors(),
+                    modifier = Modifier.weight(1f),
+                ) { CupertinoText("Поделиться") }
             }
         }
     }

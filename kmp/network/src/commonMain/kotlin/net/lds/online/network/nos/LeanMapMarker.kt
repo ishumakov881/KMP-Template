@@ -32,4 +32,36 @@ data class LeanMapMarker(
 ) {
     fun samePointAs(other: LeanMapMarker): Boolean =
         lat == other.lat && lng == other.lng && name == other.name && type == other.type
+
+    /**
+     * Plain-text payload for mobile share/clipboard.
+     * Only non-blank fields from markgen/popup — nothing invented.
+     */
+    fun formatShareText(baseUrl: String = NosEndpoints.BASE_URL): String = buildString {
+        fun line(label: String, value: String?) {
+            val v = value?.trim()?.takeIf { it.isNotEmpty() } ?: return
+            append(label).append(": ").append(v).append('\n')
+        }
+        line("Имя", name)
+        line("Тип", type)
+        line("Слой", layer)
+        line("IP", ip)
+        line("Узел", siteLabel)
+        siteId?.let { line("ID узла", it.toString()) }
+        line("Место", place)
+        line("Модель", deviceModel)
+        line("Серийник", serial)
+        line("MAC", mac)
+        line("Entity id", entityId)
+        if (maintenanceActive) {
+            line("Техработы", maintenanceText ?: "активны")
+        }
+        append("Координаты: ").append(lat).append(", ").append(lng).append('\n')
+        val root = baseUrl.trimEnd('/')
+        siteId?.let { append("Узел URL: ").append(root).append("/sw/").append(it).append('\n') }
+        ip?.let { ipValue ->
+            append("Графики: ").append(root).append("/sw/pic/").append(ipValue).append('\n')
+            append("SNMP: ").append(root).append("/sw/snmp/").append(ipValue).append('\n')
+        }
+    }.trimEnd()
 }
