@@ -19,11 +19,17 @@ import java.security.MessageDigest
 /**
  * Downloads and caches NOS map icons by absolute URL (few unique icons, many markers).
  * Memory + disk so cold start after first visit does not flash default pins.
+ * Display size is [DISPLAY_SCALE] × PNG pixels (osmdroid uses drawable intrinsic size).
  */
 internal class MarkerIconCache(private val context: Context) {
     private val bitmaps = mutableMapOf<String, Bitmap>()
     private val mutex = Mutex()
     private val diskDir = File(context.cacheDir, "map_icons").also { it.mkdirs() }
+
+    companion object {
+        /** Slightly larger than web asset pixels for phone map readability. */
+        const val DISPLAY_SCALE = 1.5f
+    }
 
     suspend fun ensureLoaded(urls: Collection<String>) {
         val missing = urls.filter { it.isNotBlank() && it !in bitmaps }.distinct()
@@ -43,7 +49,14 @@ internal class MarkerIconCache(private val context: Context) {
     fun drawableFor(url: String?): Drawable? {
         if (url.isNullOrBlank()) return null
         val bmp = bitmaps[url] ?: return null
-        return BitmapDrawable(context.resources, bmp)
+        val w = (bmp.width * DISPLAY_SCALE).toInt().coerceAtLeast(1)
+        val h = (bmp.height * DISPLAY_SCALE).toInt().coerceAtLeast(1)
+        val scaled = if (w == bmp.width && h == bmp.height) {
+            bmp
+        } else {
+            Bitmap.createScaledBitmap(bmp, w, h, true)
+        }
+        return BitmapDrawable(context.resources, scaled)
     }
 
     private fun diskFile(url: String): File {
