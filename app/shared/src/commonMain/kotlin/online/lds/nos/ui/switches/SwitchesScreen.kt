@@ -22,13 +22,17 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import online.lds.nos.ui.ScreenList
 import online.lds.nos.ui.TitleWithSubtitle
+import online.lds.nos.ui.map.MapMaintenanceCommentDialog
+import online.lds.nos.ui.map.MapMarkerPopup
 import io.github.alexzhirkevich.cupertino.CupertinoActivityIndicator
+import io.github.alexzhirkevich.cupertino.CupertinoAlertDialog
 import io.github.alexzhirkevich.cupertino.CupertinoIcon
 import io.github.alexzhirkevich.cupertino.CupertinoSearchTextField
 import io.github.alexzhirkevich.cupertino.CupertinoSegmentedControl
 import io.github.alexzhirkevich.cupertino.CupertinoSegmentedControlTab
 import io.github.alexzhirkevich.cupertino.CupertinoText
 import io.github.alexzhirkevich.cupertino.ExperimentalCupertinoApi
+import io.github.alexzhirkevich.cupertino.default
 import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
 import io.github.alexzhirkevich.cupertino.icons.outlined.ServerRack
 import io.github.alexzhirkevich.cupertino.section.CupertinoSectionDefaults
@@ -45,16 +49,29 @@ import net.lds.online.ui.base.UiState
 fun SwitchesRoute(
     mapRepository: NosMapRepository,
     padding: PaddingValues,
+    onOpenPic: (ip: String, titleHint: String) -> Unit = { _, _ -> },
+    onOpenSite: (siteId: Int, siteName: String) -> Unit = { _, _ -> },
+    onOpenSnmp: (ip: String) -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: SwitchesViewModel = remember(mapRepository) { SwitchesViewModel(mapRepository) },
 ) {
-    SwitchesScreen(viewModel = viewModel, padding = padding, modifier = modifier)
+    SwitchesScreen(
+        viewModel = viewModel,
+        padding = padding,
+        onOpenPic = onOpenPic,
+        onOpenSite = onOpenSite,
+        onOpenSnmp = onOpenSnmp,
+        modifier = modifier,
+    )
 }
 
 @Composable
 fun SwitchesScreen(
     viewModel: SwitchesViewModel,
     padding: PaddingValues,
+    onOpenPic: (ip: String, titleHint: String) -> Unit,
+    onOpenSite: (siteId: Int, siteName: String) -> Unit,
+    onOpenSnmp: (ip: String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsState()
@@ -127,7 +144,9 @@ fun SwitchesScreen(
                         visible.forEach { item ->
                             link(
                                 key = "${item.name}|${item.lat}|${item.lng}|${item.layer}",
-                                onClick = { },
+                                onClick = {
+                                    viewModel.onEvent(SwitchesEvent.SelectMarker(item))
+                                },
                                 icon = {
                                     val url = item.resolvedIconUrl()
                                     if (url != null) {
@@ -155,6 +174,75 @@ fun SwitchesScreen(
                         }
                     }
                 }
+            }
+        }
+
+        val success = state.contentState
+        if (success is UiState.Success) {
+            val data = success.data
+            data.selectedMarker?.let { marker ->
+                MapMarkerPopup(
+                    marker = marker,
+                    pingLoading = data.pingLoading,
+                    onDismiss = { viewModel.onEvent(SwitchesEvent.DismissPopup) },
+                    onPing = { viewModel.onEvent(SwitchesEvent.PingSelected) },
+                    onOpenPic = {
+                        val ip = marker.ip ?: return@MapMarkerPopup
+                        viewModel.onEvent(SwitchesEvent.DismissPopup)
+                        onOpenPic(ip, marker.name.ifBlank { ip })
+                    },
+                    onOpenSite = {
+                        val id = marker.siteId ?: return@MapMarkerPopup
+                        viewModel.onEvent(SwitchesEvent.DismissPopup)
+                        onOpenSite(id, marker.siteLabel ?: "Узел $id")
+                    },
+                    onOpenSnmp = {
+                        val ip = marker.ip ?: return@MapMarkerPopup
+                        viewModel.onEvent(SwitchesEvent.DismissPopup)
+                        onOpenSnmp(ip)
+                    },
+                    onRequestEnableMaintenance = {
+                        viewModel.onEvent(SwitchesEvent.RequestEnableMaintenance)
+                    },
+                    onDisableMaintenance = {
+                        viewModel.onEvent(SwitchesEvent.DisableMaintenance)
+                    },
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .padding(padding)
+                        .padding(12.dp),
+                )
+            }
+            data.pingResult?.let { result ->
+                CupertinoAlertDialog(
+                    onDismissRequest = { viewModel.onEvent(SwitchesEvent.DismissPingResult) },
+                    title = { CupertinoText("Ping") },
+                    message = { CupertinoText(result) },
+                ) {
+                    default(onClick = { viewModel.onEvent(SwitchesEvent.DismissPingResult) }) {
+                        CupertinoText("Ok")
+                    }
+                }
+            }
+            data.actionError?.let { message ->
+                CupertinoAlertDialog(
+                    onDismissRequest = { viewModel.onEvent(SwitchesEvent.DismissActionError) },
+                    title = { CupertinoText("Ошибка") },
+                    message = { CupertinoText(message) },
+                ) {
+                    default(onClick = { viewModel.onEvent(SwitchesEvent.DismissActionError) }) {
+                        CupertinoText("Понятно")
+                    }
+                }
+            }
+            if (data.maintenancePromptVisible) {
+                MapMaintenanceCommentDialog(
+                    onDismiss = { viewModel.onEvent(SwitchesEvent.DismissMaintenancePrompt) },
+                    onConfirm = { comment ->
+                        viewModel.onEvent(SwitchesEvent.ConfirmEnableMaintenance(comment))
+                    },
+                )
             }
         }
     }

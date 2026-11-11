@@ -152,6 +152,12 @@ private fun MapShellContent(
                 .padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            MapRefreshPanel(
+                selected = data.refreshInterval,
+                onSelect = { interval ->
+                    viewModel.onEvent(MapEvent.SetRefreshInterval(interval))
+                },
+            )
             MapLegendPanel(
                 snapshot = data.legend,
                 visibleLayers = data.visibleLayers,
@@ -161,12 +167,6 @@ private fun MapShellContent(
                 },
                 onToggleGroup = { groupId, enabled ->
                     viewModel.onEvent(MapEvent.ToggleGroup(groupId, enabled))
-                },
-            )
-            MapRefreshPanel(
-                selected = data.refreshInterval,
-                onSelect = { interval ->
-                    viewModel.onEvent(MapEvent.SetRefreshInterval(interval))
                 },
             )
             if (data.markersLoading) {

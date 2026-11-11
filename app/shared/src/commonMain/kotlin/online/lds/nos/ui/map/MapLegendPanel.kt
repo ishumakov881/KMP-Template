@@ -52,7 +52,7 @@ fun MapLegendPanel(
     onToggleLayer: (leafletLayer: String) -> Unit,
     onToggleGroup: (groupId: String, enabled: Boolean) -> Unit,
     modifier: Modifier = Modifier,
-    initiallyExpanded: Boolean = true,
+    initiallyExpanded: Boolean = false,
     /** False while markgen streams in — show stub groups, ignore checkbox taps. */
     interactionsEnabled: Boolean = true,
 ) {

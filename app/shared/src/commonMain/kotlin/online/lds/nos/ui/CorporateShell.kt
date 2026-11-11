@@ -310,6 +310,15 @@ fun CorporateShell(
                     mapRepository = mapRepository,
                     padding = padding,
                     viewModel = switchesViewModel,
+                    onOpenPic = { ip, titleHint ->
+                        push(Overlay.SwPicDetail(path = ip, titleHint = titleHint))
+                    },
+                    onOpenSite = { siteId, siteName ->
+                        push(Overlay.SwSiteDetail(siteId = siteId, siteName = siteName))
+                    },
+                    onOpenSnmp = { ip ->
+                        push(Overlay.SwSnmpDetail(ip = ip))
+                    },
                 )
             }
             TabKeepAlive(visible = top == null && tab == MainTab.Sites) {
