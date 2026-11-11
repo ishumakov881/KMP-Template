@@ -140,6 +140,7 @@ fun CorporateShell(
     appPreferences: AppPreferences,
     pendingSnmpIp: String? = null,
     onPendingSnmpConsumed: () -> Unit = {},
+    onLogout: () -> Unit = {},
 ) {
     var tab by rememberSaveable { mutableStateOf(MainTab.Map) }
     var stack by remember { mutableStateOf(listOf<Overlay>()) }
@@ -355,6 +356,7 @@ fun CorporateShell(
                             themePrefs = themePrefs,
                             isDark = isDark,
                             onThemePrefsChange = onThemePrefsChange,
+                            onLogout = onLogout,
                         )
 
                         is Overlay.SwSiteDetail -> SiteDetailRoute(

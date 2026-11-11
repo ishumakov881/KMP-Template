@@ -54,8 +54,9 @@
   Verify: `LoginScreen` на Cupertino (`CupertinoSection`/`CupertinoButton`/`CupertinoText`); `:kmp:udf` ErrorView/loading без Material3; на ≥768 form+aside row, &lt;480 кнопка full width.
 - [ ] U2 — Не копировать Material/Compose UI-скин с ldsonline; источник виджетов — Cupertino в `:app:shared` / `:kmp:udf`.
   Verify: в login и udf UI нет `material3` Button/TextField/OutlinedButton; `app/shared` не тянет `compose-material3` ради экранов.
-- [x] U3 — Веб-«Профиль» NOS (= тема) не дублировать отдельным bottom-tab: настройки уже в тулбаре. В `SettingsScreen` активны блоки «Оформление» и «О приложении»; демо-«Уведомления» закомментированы (не удалены).
+- [x] U3 — Веб-«Профиль» NOS (= тема) не дублировать отдельным bottom-tab: настройки уже в тулбаре. В `SettingsScreen` активны блоки «Оформление» и «О приложении»; демо-«Уведомления» закомментированы (не удалены). Выход — см. U19.
   Verify: открыть шестерёнку в тулбаре — видны Оформление + О приложении, секции уведомлений нет; закомментированный блок «Уведомления» остаётся в `SettingsScreen.kt`.
+  Изм. 2026-11-11: logout вынесен в Settings (U19), не отдельный tab Профиль.
 - [x] U4 — Bottom nav: tabs **Карта** (`MainTab.Map`, дефолт), **Свичи** (`MainTab.Switches`, markgen), **Узлы** (`MainTab.Sites`, веб `/sw` left menu). «Профиль» / демо Desktop/Requests убраны из bar (файлы экранов не удалять, entries закомментированы). Тема — Settings overlay.
   Verify: bottom bar показывает «Карта», «Свичи», «Узлы»; нет «Профиль»/«Рабочий стол»/«Заявки»; `ProfileScreen.kt` / `DesktopScreen.kt` / `RequestsScreen.kt` на месте; `MainTab` entries в `CorporateShell.kt`.
   Изм. 2026-11-10: добавлен tab Карта; демо Desktop/Requests тоже закомментированы в nav.
@@ -108,6 +109,8 @@
   Verify: Узлы → Back → иконка «Карта» активна сразу, без ожидания «прогрузки» карты; уход/возврат на Карту без полной пересборки overlays.
 - [x] U18 — Экран **Карта** не ждёт полный markgen за `BaseScreenLayout`/shimmer: сразу shell (тайлы osmdroid + заглушка легенды из каталога, чекбоксы неактивны пока нет маркеров) и стриминг типов markgen по мере ответа; индикатор у панелей пока `markersLoading`. Остальные экраны по-прежнему на `BaseScreenLayout`.
   Verify: холодный вход на Карту — карта/легенда видны до конца всех 9 запросов; маркеры появляются пачками; нет полноэкранного спиннера ~3с; `MapScreen` без `BaseScreenLayout`; `MapViewModel.loadMarkersProgressive`.
+- [x] U19 — **Выйти из аккаунта** в Настройках (шестерёнка): кнопка внизу `SettingsScreen` → confirm → `remove(KEY_PHPSESSID)` + `AuthGate.NeedLogin` (экран логина). Можно убрать позже без затрагивания темы.
+  Verify: Шестерёнка → «Выйти из аккаунта» → «Выйти» → форма логина; после kill app снова login (нет `pref_nos_phpsessid`); тема/легенда prefs не сбрасываются.
 
 ## D. Данные
 
@@ -128,6 +131,8 @@
   Изм. 2026-11-10: убран хардкод Desktop `debug.keystore` / `lds.signing.dir` — только global gradle props.
 - [ ] B3 — Desktop JVM: cupertino `CupertinoBottomSheetScaffold` / defaults `WindowInsets.systemBars` дают `NoSuchMethodError` на CMP 1.12 (баг библиотеки). В `CorporateShell` снова общий `CupertinoBottomSheetScaffold` (как до split). Workaround desktop — отдельно, если понадобится.
   Verify: `CorporateShell` → `CupertinoBottomSheetScaffold` + `rememberCupertinoSheetState`; нет `NosAppScaffold`; Android ок; desktop после login может падать до фикса cupertino / отдельного desktop shell.
+- [x] B4 — Имя выходного APK как в ldsonline (`archivesBaseName = applicationId-versionName`). На AGP 9: `android.base.archivesName.set("$applicationId-$versionName")` → `online.lds.nos-1.0-release.apk` (AGP добавляет `-<buildType>`).
+  Verify: `app/androidApp/build.gradle.kts` → `base { archivesName.set(...) }`; `assembleRelease` → `outputs/apk/release/online.lds.nos-1.0-release.apk`, не `androidApp-release.apk`.
 
 ## X. Процесс
 

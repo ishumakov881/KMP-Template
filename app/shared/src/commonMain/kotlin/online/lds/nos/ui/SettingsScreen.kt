@@ -3,17 +3,24 @@
 package online.lds.nos.ui
 
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import io.github.alexzhirkevich.cupertino.CupertinoAlertDialog
+import io.github.alexzhirkevich.cupertino.CupertinoButton
+import io.github.alexzhirkevich.cupertino.CupertinoButtonDefaults
 import io.github.alexzhirkevich.cupertino.CupertinoIcon
 import io.github.alexzhirkevich.cupertino.CupertinoText
 import io.github.alexzhirkevich.cupertino.ExperimentalCupertinoApi
 import io.github.alexzhirkevich.cupertino.MenuPickerAction
+import io.github.alexzhirkevich.cupertino.cancel
 import io.github.alexzhirkevich.cupertino.default
+import io.github.alexzhirkevich.cupertino.destructive
 import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
 import io.github.alexzhirkevich.cupertino.icons.filled.Paintpalette
 import io.github.alexzhirkevich.cupertino.icons.outlined.Lock
@@ -22,6 +29,7 @@ import io.github.alexzhirkevich.cupertino.icons.outlined.Paintbrush
 import io.github.alexzhirkevich.cupertino.icons.outlined.Paintpalette
 import io.github.alexzhirkevich.cupertino.icons.outlined.InfoCircle
 import io.github.alexzhirkevich.cupertino.section.CupertinoLinkIcon
+import io.github.alexzhirkevich.cupertino.section.CupertinoSectionDefaults
 import io.github.alexzhirkevich.cupertino.section.dropdownMenu
 import io.github.alexzhirkevich.cupertino.section.link
 import io.github.alexzhirkevich.cupertino.section.section
@@ -32,6 +40,7 @@ import io.github.alexzhirkevich.cupertino.theme.CupertinoTheme
 import io.github.alexzhirkevich.cupertino.theme.systemGray
 import io.github.alexzhirkevich.cupertino.theme.systemIndigo
 import io.github.alexzhirkevich.cupertino.theme.systemOrange
+import io.github.alexzhirkevich.cupertino.theme.systemRed
 // import io.github.alexzhirkevich.cupertino.CupertinoCheckBox
 // import io.github.alexzhirkevich.cupertino.CupertinoSlider
 // import io.github.alexzhirkevich.cupertino.icons.outlined.Bell
@@ -49,6 +58,7 @@ fun SettingsScreen(
     themePrefs: ThemePrefs,
     isDark: Boolean,
     onThemePrefsChange: ((ThemePrefs) -> ThemePrefs) -> Unit,
+    onLogout: () -> Unit = {},
 ) {
     var accentMenuExpanded by remember { mutableStateOf(false) }
     // Демо-уведомления (не из NOS web «Профиль») — оставлены закомментированными.
@@ -58,6 +68,7 @@ fun SettingsScreen(
     // var pushNotifications by remember { mutableStateOf(true) }
     // var volume by remember { mutableFloatStateOf(0.6f) }
     var showPolicy by remember { mutableStateOf(false) }
+    var confirmLogout by remember { mutableStateOf(false) }
 
     val followSystem = themePrefs.mode == ThemeMode.System
 
@@ -173,6 +184,19 @@ fun SettingsScreen(
                 trailingIcon = {},
             ) { CupertinoText("Версия") }
         }
+
+        // Можно убрать позже, если выход не нужен в настройках.
+        item {
+            CupertinoButton(
+                onClick = { confirmLogout = true },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(CupertinoSectionDefaults.PaddingValues),
+                colors = CupertinoButtonDefaults.grayButtonColors(),
+            ) {
+                CupertinoText("Выйти из аккаунта", color = CupertinoColors.systemRed)
+            }
+        }
     }
 
     if (showPolicy) {
@@ -182,6 +206,20 @@ fun SettingsScreen(
             message = { CupertinoText("Демо-приложение не собирает персональные данные.") },
         ) {
             default(onClick = { showPolicy = false }) { CupertinoText("Понятно") }
+        }
+    }
+
+    if (confirmLogout) {
+        CupertinoAlertDialog(
+            onDismissRequest = { confirmLogout = false },
+            title = { CupertinoText("Выйти из аккаунта?") },
+            message = { CupertinoText("Сессия на этом устройстве будет сброшена. Нужно будет войти снова.") },
+        ) {
+            cancel(onClick = { confirmLogout = false }) { CupertinoText("Отмена") }
+            destructive(onClick = {
+                confirmLogout = false
+                onLogout()
+            }) { CupertinoText("Выйти") }
         }
     }
 }

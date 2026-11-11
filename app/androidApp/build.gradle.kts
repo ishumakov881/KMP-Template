@@ -30,6 +30,11 @@ android {
         versionCode = 1
         versionName = "1.0"
     }
+    // ldsonline (AGP 8): setProperty("archivesBaseName", "$applicationId-$versionName")
+    // AGP 9 equivalent → same {applicationId}-{versionName} stem
+    base {
+        archivesName.set("${defaultConfig.applicationId}-${defaultConfig.versionName}")
+    }
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"

@@ -159,6 +159,10 @@ fun App(
                     appPreferences = prefsForShell,
                     pendingSnmpIp = pendingSnmpIp,
                     onPendingSnmpConsumed = onPendingSnmpConsumed,
+                    onLogout = {
+                        prefsForShell.remove(AppPreferences.KEY_PHPSESSID)
+                        gate = AuthGate.NeedLogin
+                    },
                 )
             }
         }
