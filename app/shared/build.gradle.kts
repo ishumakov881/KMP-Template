@@ -57,6 +57,13 @@ kotlin {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.compose.uiTooling)
             implementation(libs.osmdroid.android)
+            api(project(":kmp:db"))
+        }
+        jvmMain.dependencies {
+            api(project(":kmp:db"))
+        }
+        iosMain.dependencies {
+            api(project(":kmp:db"))
         }
         commonMain.dependencies {
             api(project(":core"))

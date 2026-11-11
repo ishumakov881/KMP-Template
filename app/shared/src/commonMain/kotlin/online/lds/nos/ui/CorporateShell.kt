@@ -73,6 +73,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import net.lds.online.network.nos.NosMapRepository
 import net.lds.online.network.nos.NosSwRepository
+import online.lds.nos.data.AppPreferences
 import online.lds.nos.ui.map.MapRoute
 import online.lds.nos.ui.map.MapViewModel
 import online.lds.nos.ui.sites.SiteDetailRoute
@@ -136,6 +137,7 @@ fun CorporateShell(
     onThemePrefsChange: ((ThemePrefs) -> ThemePrefs) -> Unit,
     mapRepository: NosMapRepository,
     swRepository: NosSwRepository,
+    appPreferences: AppPreferences,
     pendingSnmpIp: String? = null,
     onPendingSnmpConsumed: () -> Unit = {},
 ) {
@@ -144,7 +146,9 @@ fun CorporateShell(
     var desktopLoaded by rememberSaveable { mutableStateOf(false) }
     val requestsState = remember { RequestsState() }
     // Keep tab VMs above AnimatedContent so markgen/sites lists survive tab switches.
-    val mapViewModel = remember(mapRepository) { MapViewModel(mapRepository) }
+    val mapViewModel = remember(mapRepository, appPreferences) {
+        MapViewModel(mapRepository, appPreferences)
+    }
     val switchesViewModel = remember(mapRepository) { SwitchesViewModel(mapRepository) }
     val sitesViewModel = remember(swRepository) { SitesViewModel(swRepository) }
     val scope = rememberCoroutineScope()

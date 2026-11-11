@@ -25,6 +25,8 @@ import io.github.alexzhirkevich.cupertino.default
 import net.lds.online.components.ErrorView
 import net.lds.online.network.nos.NosMapRepository
 import net.lds.online.ui.base.UiState
+import online.lds.nos.data.AppPreferences
+import online.lds.nos.data.InMemorySettings
 
 @Composable
 fun MapRoute(
@@ -33,7 +35,10 @@ fun MapRoute(
     onOpenPic: (ip: String, titleHint: String) -> Unit = { _, _ -> },
     onOpenSite: (siteId: Int, siteName: String) -> Unit = { _, _ -> },
     onOpenSnmp: (ip: String) -> Unit = {},
-    viewModel: MapViewModel = remember(mapRepository) { MapViewModel(mapRepository) },
+    appPreferences: AppPreferences = remember { AppPreferences(InMemorySettings()) },
+    viewModel: MapViewModel = remember(mapRepository, appPreferences) {
+        MapViewModel(mapRepository, appPreferences)
+    },
     modifier: Modifier = Modifier,
 ) {
     MapScreen(

@@ -44,6 +44,9 @@
   Verify: `settings.gradle.kts` include `:kmp:udf`; `app/shared` зависит от `:kmp:udf`; login/экраны наследуют `BaseViewModel`.
 - [x] A4 — Prefs: один универсальный `AppPreferences(Settings)` с generic get/put/remove и ключами в `companion`; не плодить доменные одноключевые `*SessionStore` / `*Store`. In-memory для Preview/тестов — `InMemorySettings`, не `MapSettings` на проде.
   Verify: есть `data/AppPreferences.kt` и `data/InMemorySettings.kt`; нет `NosSessionStore.kt`; call sites (`App`, `LoginViewModel`, `MainActivity`) используют `AppPreferences` + `KEY_*`.
+- [ ] A5 — Офлайн-кэш: модуль `:kmp:db` с **Room на всех Room-платформах** (Android + iOS + Desktop JVM, `BundledSQLiteDriver`, без fake-stub DAO). JS/Wasm в модуль не входят — Room туда не портирован. UI читает Flow из DAO; сеть пишет в БД. Флаг `AppPreferences.KEY_OFFLINE_CACHE`: on = DB-first + sync; off = network-only.
+  Verify: `include(":kmp:db")`; `createNosDatabase` на android/jvm/ios; `MarkerDao.replaceType` / `SiteDao.replaceAll`; shared зависит от `:kmp:db` в androidMain/jvmMain/iosMain; `:app:androidApp:assembleDebug` и `:app:desktopApp:compileKotlin` ок.
+  Изм. 2026-11-11: не заглушка на desktop — тот же Room.
 
 ## U. UI / UX
 
@@ -70,9 +73,10 @@
   Изм. 2026-11-11: mrtg — не залипать на закэшированном Coil HTTP 404 (`diskCachePolicy WRITE_ONLY` + clear memory/disk при создании ImageLoader); URL как веб `/inc/other/rrd/{ip}/nolegend.png` (пустой RRD PNG).
 - [x] U11 — Клик по устройству/mrtg на детали узла открывает экран как веб `/sw/pic/{ip}` (`NosSwRepository.picPage`): список day-графиков; тап по linked-графику → `/sw/pic/{ip}/{n}` (hour/day/week/month/year). Back по стеку. Без WebView.
   Verify: Узлы → сайт → тап строку/график → страница с `*.day.png`; тап day → набор `*.hour/day/week/month/year.png`; данные с `GET /sw/pic/...`, не хардкод списка PNG.
-- [x] U5 — Сворачиваемая легенда как веб `#legend`: иконка + подпись + count; **чекбоксы** вкл/выкл слои на карте (`visibleLayers` / `ToggleLayer` / `ToggleGroup`) без перезагрузки markgen; данные из OOP-каталога. Панели легенды/обновления — **TopStart**, не перекрывают zoom +/- снизу.
-  Verify: `MapLegendPanel` + `CupertinoCheckBox`; снять «Свич доступен» → зелёные свичи пропадают; zoom кнопки снизу справа свободны; нет краша `clickable`/`CupertinoIndication`.
+- [x] U5 — Сворачиваемая легенда как веб `#legend`: иконка + подпись + count; **чекбоксы** вкл/выкл слои на карте (`visibleLayers` / `ToggleLayer` / `ToggleGroup`) без перезагрузки markgen; данные из OOP-каталога. Панели легенды/обновления — **TopStart**, не перекрывают zoom +/- снизу. Состояние чекбоксов переживает перезапуск: скрытые `layer` в `AppPreferences.KEY_MAP_HIDDEN_LAYERS`; новые слои по умолчанию видны.
+  Verify: `MapLegendPanel` + `CupertinoCheckBox`; снять «Свич доступен» → зелёные свичи пропадают; kill app → снова скрыты; zoom кнопки снизу справа свободны; нет краша `clickable`/`CupertinoIndication`.
   Изм. 2026-11-10: checkbox show/hide; панели снизу → TopStart (не кроют зум).
+  Изм. 2026-11-11: persist hidden layers через `AppPreferences`.
 - [x] U6 — Иконки маркеров на карте совпадают с легендой/markgen: `LeanMapMarker.resolvedIconUrl()` (`icon` с сервера, иначе catalog по `layer`) → osmdroid `Marker.icon` через `MarkerIconCache` (не дефолтный пин).
   Verify: свичи/узлы/wifi на карте цветными PNG с `nos.lds.online/images/map/...`, как в легенде; уникальные URL кэшируются.
   Изм. 2026-11-11: маркеры на карту только **после** загрузки иконок (`displayMarkers`); параллельный download + disk cache `map_icons` — без вспышки стандартного osmdroid-пина.
@@ -102,8 +106,8 @@
 
 ## D. Данные
 
-- [ ] D1 — Маркер — одна сущность со сменным статусом/слоем (`layer`/`state`/`icon`, напр. wifi ok↔dn); UI-группы — фильтр по полям, не отдельные копии объекта. Офлайн Room хранит сущности; синк не обязан «пересчитывать глобальный JSON», а upsert’ит пришедший снимок типа (пока API только full markgen по type; delta — отдельное улучшение бэка).
-  Verify: в модели/доке зафиксировано: группа = атрибут; Refresh веба = `deleteOverlays` + полный markgen всех type по интервалу; натив фильтрует Room по `layer`, не дублирует точки по группам.
+- [ ] D1 — Маркер — одна сущность со сменным статусом/слоем (`layer`/`state`/`icon`, напр. wifi ok↔dn); UI-группы — фильтр по полям, не отдельные копии объекта. Офлайн Room: PK стабильный (`type`+`entityId`/`ip`/`lat,lng,name`); sync markgen = **replace по `type`** в одной `@Transaction` (`DELETE WHERE type=?` + `INSERT` batch), не wipe всей таблицы и не поштучный replace всего листа; точечный upsert одного маркера (maintenance/ping) не ломает остальной type. Список узлов `SwSite` — replace всего меню; детали узла — по `siteId`. API delta — позже.
+  Verify: `MarkerEntity` + `replaceType(type, rows)`; Map progressive пишет type-batch в DAO → Flow обновляет UI; смена одного maintenance не чистит другие type; фильтр UI по `layer`, не дубли групп.
 - [x] D2 — Легенда карты — статический OOP-каталог (`MapLegendItem` / `MapLegendGroup` / `NosMapLegendCatalog`, паритет веб) **плюс** авто-дополнение: неизвестные `layer` из markgen → `discoverUnknownLayers` (title/icon с маркера), в свою группу по `type` или в «Другие»; `snapshotFor` даёт counts. Не парсить `/osm`.
   Verify: `NosMapLegendCatalog.snapshotFor` / `discoverUnknownLayers`; известные слои из каталога; новый `layer_*` в ответе появляется в легенде без правки каталога; `MapViewModel` кладёт `legend` в `MapUiData`.
   Изм. 2026-11-10: было только static catalog → static + discovery из markgen.

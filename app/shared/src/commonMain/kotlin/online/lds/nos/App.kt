@@ -144,18 +144,23 @@ fun App(
                 )
             }
 
-            AuthGate.Authenticated -> CorporateShell(
-                themePrefs = prefs,
-                isDark = dark,
-                onThemePrefsChange = { transform ->
-                    if (themeSettings != null) themeSettings.update(transform)
-                    else sessionPrefs = transform(sessionPrefs)
-                },
-                mapRepository = resolvedMap,
-                swRepository = resolvedSw,
-                pendingSnmpIp = pendingSnmpIp,
-                onPendingSnmpConsumed = onPendingSnmpConsumed,
-            )
+            AuthGate.Authenticated -> {
+                val prefsForShell = resolvedPrefs
+                    ?: remember { AppPreferences(InMemorySettings()) }
+                CorporateShell(
+                    themePrefs = prefs,
+                    isDark = dark,
+                    onThemePrefsChange = { transform ->
+                        if (themeSettings != null) themeSettings.update(transform)
+                        else sessionPrefs = transform(sessionPrefs)
+                    },
+                    mapRepository = resolvedMap,
+                    swRepository = resolvedSw,
+                    appPreferences = prefsForShell,
+                    pendingSnmpIp = pendingSnmpIp,
+                    onPendingSnmpConsumed = onPendingSnmpConsumed,
+                )
+            }
         }
     }
 }

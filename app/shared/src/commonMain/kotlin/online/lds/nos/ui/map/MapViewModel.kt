@@ -19,6 +19,7 @@ import net.lds.online.ui.base.BaseEvent
 import net.lds.online.ui.base.BaseViewModel
 import net.lds.online.ui.base.ScreenState
 import net.lds.online.ui.base.UiState
+import online.lds.nos.data.AppPreferences
 
 data class MapUiData(
     val markers: List<LeanMapMarker> = emptyList(),
@@ -72,6 +73,7 @@ sealed interface MapEvent : BaseEvent {
 
 class MapViewModel(
     private val mapRepository: NosMapRepository,
+    private val appPreferences: AppPreferences,
     /** Defaults to full web markgen set from `map_osm.js` (sw/uzel/pon/mft/wifi/usil/amp/lines). */
     private val enabledTypes: List<String> = NosMapRepository.DEFAULT_MAP_TYPES,
 ) : BaseViewModel<MapUiData, MapEvent>() {
@@ -224,15 +226,27 @@ class MapViewModel(
             loadedTypes = catalogTypes,
             markers = emptyList(),
         )
+        val allLayers = legend.groups
+            .flatMap { group -> group.items.mapNotNull { it.item.leafletLayer } }
+            .toSet()
         return MapUiData(
             markers = emptyList(),
             loadedTypes = emptySet(),
             legend = legend,
-            visibleLayers = legend.groups
-                .flatMap { group -> group.items.mapNotNull { it.item.leafletLayer } }
-                .toSet(),
+            visibleLayers = visibleLayersFromPrefs(allLayers),
             markersLoading = true,
         )
+    }
+
+    /** Restore legend checkboxes; unknown/new layers default to visible. */
+    private fun visibleLayersFromPrefs(allLayers: Set<String>): Set<String> {
+        val hidden = appPreferences.getMapHiddenLayers() ?: return allLayers
+        return allLayers - hidden
+    }
+
+    private fun persistVisibleLayers(data: MapUiData) {
+        val hidden = data.allLegendLayers - data.visibleLayers
+        appPreferences.putMapHiddenLayers(hidden)
     }
 
     private fun applyTypeBatch(type: String, batch: List<LeanMapMarker>) {
@@ -341,7 +355,7 @@ class MapViewModel(
             } else {
                 data.visibleLayers + leafletLayer
             }
-            data.copy(visibleLayers = next)
+            data.copy(visibleLayers = next).also { persistVisibleLayers(it) }
         }
     }
 
@@ -358,7 +372,7 @@ class MapViewModel(
             } else {
                 data.visibleLayers - layers.toSet()
             }
-            data.copy(visibleLayers = next)
+            data.copy(visibleLayers = next).also { persistVisibleLayers(it) }
         }
     }
 
