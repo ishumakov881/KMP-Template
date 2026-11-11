@@ -3,6 +3,7 @@ package online.lds.nos.ui.auth
 import androidx.lifecycle.viewModelScope
 import online.lds.nos.data.AppPreferences
 import kotlinx.coroutines.launch
+import kotlinx.io.IOException
 import net.lds.online.network.ApiException
 import net.lds.online.network.nos.NosAuthRepository
 import net.lds.online.ui.base.BaseEvent
@@ -69,7 +70,23 @@ class LoginViewModel(
                     )
                 }
                 onAuthenticated()
-            } catch (e: Exception) {
+            }
+            catch (e: IOException) {
+
+
+                //Не удаляем сессию если нет сети
+
+                val api = e as? ApiException ?: ApiException.from(e)
+                updateData {
+                    it.copy(
+                        isSubmitting = false,
+                        errorMessage = "@@@@"+api.getUserMessage(),
+                    )
+                }
+            }
+
+            catch (e: Exception) {
+                println("@@@ ${e}")
                 val api = e as? ApiException ?: ApiException.from(e)
                 appPreferences.remove(AppPreferences.KEY_PHPSESSID)
                 updateData {
