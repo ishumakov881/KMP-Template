@@ -6,25 +6,37 @@ import android.graphics.BitmapFactory
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withContext
+import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
+import java.security.MessageDigest
 
 /**
  * Downloads and caches NOS map icons by absolute URL (few unique icons, many markers).
+ * Memory + disk so cold start after first visit does not flash default pins.
  */
 internal class MarkerIconCache(private val context: Context) {
     private val bitmaps = mutableMapOf<String, Bitmap>()
     private val mutex = Mutex()
+    private val diskDir = File(context.cacheDir, "map_icons").also { it.mkdirs() }
 
     suspend fun ensureLoaded(urls: Collection<String>) {
         val missing = urls.filter { it.isNotBlank() && it !in bitmaps }.distinct()
         if (missing.isEmpty()) return
-        missing.forEach { url ->
-            val bmp = withContext(Dispatchers.IO) { downloadBitmap(url) } ?: return@forEach
-            mutex.withLock { bitmaps[url] = bmp }
+        coroutineScope {
+            missing.map { url ->
+                async(Dispatchers.IO) {
+                    val bmp = loadFromDisk(url) ?: downloadBitmap(url)?.also { saveToDisk(url, it) }
+                    url to bmp
+                }
+            }.awaitAll().forEach { (url, bmp) ->
+                if (bmp != null) mutex.withLock { bitmaps[url] = bmp }
+            }
         }
     }
 
@@ -32,6 +44,28 @@ internal class MarkerIconCache(private val context: Context) {
         if (url.isNullOrBlank()) return null
         val bmp = bitmaps[url] ?: return null
         return BitmapDrawable(context.resources, bmp)
+    }
+
+    private fun diskFile(url: String): File {
+        val digest = MessageDigest.getInstance("SHA-256")
+            .digest(url.toByteArray())
+            .joinToString("") { b -> "%02x".format(b) }
+        return File(diskDir, digest)
+    }
+
+    private fun loadFromDisk(url: String): Bitmap? =
+        runCatching {
+            val file = diskFile(url)
+            if (!file.isFile) return null
+            BitmapFactory.decodeFile(file.absolutePath)
+        }.getOrNull()
+
+    private fun saveToDisk(url: String, bmp: Bitmap) {
+        runCatching {
+            diskFile(url).outputStream().use { out ->
+                bmp.compress(Bitmap.CompressFormat.PNG, 100, out)
+            }
+        }
     }
 
     private fun downloadBitmap(url: String): Bitmap? {

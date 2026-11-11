@@ -6,6 +6,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
@@ -49,6 +50,8 @@ actual fun NosMapCanvas(
     val context = LocalContext.current
     val iconCache = remember { MarkerIconCache(context.applicationContext) }
     var iconsVersion by remember { mutableIntStateOf(0) }
+    // Place markers only after icon fetch — avoids default-pin → real-icon flash.
+    var displayMarkers by remember { mutableStateOf<List<LeanMapMarker>>(emptyList()) }
     val onMarkerClickState = rememberUpdatedState(onMarkerClick)
 
     val mapView = remember {
@@ -64,8 +67,14 @@ actual fun NosMapCanvas(
     }
 
     LaunchedEffect(markers) {
+        if (markers.isEmpty()) {
+            displayMarkers = emptyList()
+            iconsVersion++
+            return@LaunchedEffect
+        }
         val urls = markers.mapNotNull { it.resolvedIconUrl() }.distinct()
         iconCache.ensureLoaded(urls)
+        displayMarkers = markers
         iconsVersion++
     }
 
@@ -85,7 +94,7 @@ actual fun NosMapCanvas(
             iconsVersion
             val existing = view.overlays.filterIsInstance<Marker>()
             view.overlays.removeAll(existing.toSet())
-            markers.forEach { item ->
+            displayMarkers.forEach { item ->
                 val marker = Marker(view)
                 marker.position = GeoPoint(item.lat, item.lng)
                 marker.title = item.name.ifBlank { item.layer.ifBlank { item.type } }
@@ -99,9 +108,14 @@ actual fun NosMapCanvas(
                 marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
                 marker.isEnabled = true
                 marker.setInfoWindowAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_TOP)
-                iconCache.drawableFor(item.resolvedIconUrl())?.let { drawable ->
+                val iconUrl = item.resolvedIconUrl()
+                val drawable = iconCache.drawableFor(iconUrl)
+                if (drawable != null) {
                     // Mutate so hit-testing / bounds stay per-marker friendly with shared bitmaps.
                     marker.icon = drawable.constantState?.newDrawable()?.mutate() ?: drawable
+                } else if (iconUrl != null) {
+                    // Icon failed to load — skip default pin; omit marker rather than flash stock icon.
+                    return@forEach
                 }
                 marker.relatedObject = item
                 // Web popup parity: open Compose sheet with ping/snmp/node — not bare InfoWindow.

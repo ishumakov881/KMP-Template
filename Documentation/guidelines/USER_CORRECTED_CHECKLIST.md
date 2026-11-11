@@ -75,6 +75,7 @@
   Изм. 2026-11-10: checkbox show/hide; панели снизу → TopStart (не кроют зум).
 - [x] U6 — Иконки маркеров на карте совпадают с легендой/markgen: `LeanMapMarker.resolvedIconUrl()` (`icon` с сервера, иначе catalog по `layer`) → osmdroid `Marker.icon` через `MarkerIconCache` (не дефолтный пин).
   Verify: свичи/узлы/wifi на карте цветными PNG с `nos.lds.online/images/map/...`, как в легенде; уникальные URL кэшируются.
+  Изм. 2026-11-11: маркеры на карту только **после** загрузки иконок (`displayMarkers`); параллельный download + disk cache `map_icons` — без вспышки стандартного osmdroid-пина.
 - [x] U7 — Клик по маркеру (все типы sw/uzel/pon/wifi/…) открывает попап паритета вебу: поля IP/узел/место/модель; **Ping** (`ajaxping`); **Графики** → `/sw/pic/{ip}`; **Узел** → `/sw/{id}`; **SNMP** — те же данные, что веб тянет в UI (`GET /sw/snmp/{ip}` shell + `ajax/ajaxsnmp.php`: на open как веб `LabelOff`→`mode=label_off`, `Ports`→`mode=new_port_description`), показ в **своём** Compose UI (`SnmpScreen`), **не** WebView и не браузер; **техработы** (`maintenance` + комментарий). FDB/RMON/Getmac — позже, не блокер закрытия SNMP-базы.
   Verify: тап маркер / deep link → SNMP → нативный список портов + label/free из ajaxsnmp; в коде нет `openUri(.../sw/snmp/)`; Ping/Графики/Узел/техработы как раньше.
   Изм. 2026-11-10: было bare InfoWindow name/type → полный попап как веб.
