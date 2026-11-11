@@ -72,13 +72,18 @@ fun App(
             }
         }
 
-    // mrtg thumbs /sw/pic PNGs are session-gated; default Coil has no NOS cookies → empty slots.
+    // mrtg thumbs /sw/pic PNGs share CookieJar. Coil caches 404 to disk — clear on create so
+    // poisoned empty slots (after broken fetcher) don't stick forever.
     val coilClient = resolvedHttp
     if (coilClient != null) {
         setSingletonImageLoaderFactory { context ->
             ImageLoader.Builder(context)
                 .components { add(KtorNetworkFetcherFactory(coilClient)) }
                 .build()
+                .also { loader ->
+                    loader.memoryCache?.clear()
+                    loader.diskCache?.clear()
+                }
         }
     }
 

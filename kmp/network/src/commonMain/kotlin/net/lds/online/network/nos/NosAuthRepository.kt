@@ -59,8 +59,8 @@ class NosAuthRepository(
                 append("submit-login", "Вход")
             },
         ) {
-            header(HttpHeaders.Origin, NosEndpoints.BASE_URL)
-            header(HttpHeaders.Referrer, "${NosEndpoints.BASE_URL}${NosEndpoints.LOGIN}?next=$next")
+            header(HttpHeaders.Origin, NosEndpoints.BASE_URL.trimEnd('/'))
+            header(HttpHeaders.Referrer, "${NosEndpoints.BASE_URL.trimEnd('/')}${NosEndpoints.LOGIN}?next=$next")
         }
 
         assertLoginSucceeded(response, next)

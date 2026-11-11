@@ -116,7 +116,7 @@ fun MapScreen(
                         },
                         onOpenSnmp = {
                             val ip = marker.ip ?: return@MapMarkerPopup
-                            uriHandler.openUri("${NosEndpoints.BASE_URL}/sw/snmp/$ip")
+                            uriHandler.openUri("${NosEndpoints.BASE_URL}sw/snmp/$ip")
                         },
                         onRequestEnableMaintenance = {
                             viewModel.onEvent(MapEvent.RequestEnableMaintenance)

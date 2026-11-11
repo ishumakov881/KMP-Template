@@ -3,7 +3,6 @@
 package online.lds.nos.ui.sites
 
 import androidx.compose.foundation.LocalIndication
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -22,9 +21,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -33,6 +30,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.compose.LocalPlatformContext
+import coil3.request.CachePolicy
 import coil3.request.ImageRequest
 import online.lds.nos.ui.ScreenList
 import online.lds.nos.ui.TitleWithSubtitle
@@ -106,7 +104,14 @@ fun SiteDetailScreen(
                 }
 
                 if (devices.isEmpty()) {
-                    item { EmptyDevicesState() }
+                    item {
+                        Box(
+                            Modifier.fillParentMaxSize(),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            EmptyDevicesState()
+                        }
+                    }
                 } else {
                     section(
                         title = {
@@ -183,17 +188,13 @@ private fun DeviceRow(
         }
         val mrtgUrl = device.mrtgUrl
         if (mrtgUrl != null) {
-            // Web `nolegend.png` is ~647×182 — keep full frame, no top/bottom crop.
-            // Loads via singleton Coil + NOS CookieJar (see App.setSingletonImageLoaderFactory).
+            // Web: always <img src="/inc/other/rrd/{ip}/nolegend.png"> — empty traffic = empty RRD PNG, not text.
             val platformContext = LocalPlatformContext.current
-            var mrtgFailed by remember(mrtgUrl) { mutableStateOf(false) }
-            val thumbModifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(MrtgThumbAspectRatio)
-                .clip(RoundedCornerShape(8.dp))
             val request = remember(mrtgUrl) {
                 ImageRequest.Builder(platformContext)
                     .data(mrtgUrl)
+                    // Skip disk read: Coil persists HTTP 404 and would keep failing after a bad fetch.
+                    .diskCachePolicy(CachePolicy.WRITE_ONLY)
                     .listener(
                         onStart = { println("NosMrtg START $mrtgUrl") },
                         onSuccess = { _, result ->
@@ -206,19 +207,15 @@ private fun DeviceRow(
                     )
                     .build()
             }
-            // Web keeps <img … alt="График временно недосупен!"> — 404 → same-size stub, not a hole.
-            if (mrtgFailed) {
-                Box(modifier = thumbModifier) { MrtgUnavailableStub() }
-            } else {
-                AsyncImage(
-                    model = request,
-                    contentDescription = "mrtg ${device.ip}",
-                    modifier = thumbModifier,
-                    contentScale = ContentScale.Fit,
-                    onError = { mrtgFailed = true },
-                    onSuccess = { mrtgFailed = false },
-                )
-            }
+            AsyncImage(
+                model = request,
+                contentDescription = "mrtg ${device.ip}",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(MrtgThumbAspectRatio)
+                    .clip(RoundedCornerShape(8.dp)),
+                contentScale = ContentScale.Fit,
+            )
         }
     }
 }
@@ -226,31 +223,12 @@ private fun DeviceRow(
 /** Intrinsic size of NOS `/inc/other/rrd/{ip}/nolegend.png`. */
 private const val MrtgThumbAspectRatio = 647f / 182f
 
-/** Empty chart slot — parity with web broken-img alt on `/sw/{id}`. */
-@Composable
-private fun MrtgUnavailableStub() {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(CupertinoTheme.colorScheme.secondarySystemBackground),
-        contentAlignment = Alignment.Center,
-    ) {
-        CupertinoText(
-            text = "График временно недоступен",
-            style = CupertinoTheme.typography.caption1,
-            color = CupertinoTheme.colorScheme.tertiaryLabel,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(horizontal = 12.dp),
-        )
-    }
-}
-
 @Composable
 private fun EmptyDevicesState() {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 48.dp, horizontal = 16.dp),
+            .padding(horizontal = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {

@@ -1,7 +1,8 @@
 package net.lds.online.network.nos
 
 object NosEndpoints {
-    const val BASE_URL = "https://nos.lds.online"
+    // Trailing slash required: Ktor defaultRequest URL merge (RFC 3986).
+    const val BASE_URL = "https://nos.lds.online/"
     const val LOGIN = "/login"
     const val AJAX_MAP = "/ajax/ajaxmap.php"
     /** Web left menu `#s_sw` + site pages — HTML, not markgen. */
