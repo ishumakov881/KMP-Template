@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -135,6 +136,8 @@ fun CorporateShell(
     onThemePrefsChange: ((ThemePrefs) -> ThemePrefs) -> Unit,
     mapRepository: NosMapRepository,
     swRepository: NosSwRepository,
+    pendingSnmpIp: String? = null,
+    onPendingSnmpConsumed: () -> Unit = {},
 ) {
     var tab by rememberSaveable { mutableStateOf(MainTab.Map) }
     var stack by remember { mutableStateOf(listOf<Overlay>()) }
@@ -147,6 +150,13 @@ fun CorporateShell(
     val scope = rememberCoroutineScope()
     val sheetState = rememberCupertinoSheetState()
     val scaffoldState = rememberCupertinoBottomSheetScaffoldState(sheetState)
+
+    // Deep link / adb: open native SNMP (same data as web /sw/snmp/{ip}).
+    LaunchedEffect(pendingSnmpIp) {
+        val ip = pendingSnmpIp ?: return@LaunchedEffect
+        stack = listOf(Overlay.SwSnmpDetail(ip = ip))
+        onPendingSnmpConsumed()
+    }
 
     val top = stack.lastOrNull()
     val push: (Overlay) -> Unit = { stack = stack + it }

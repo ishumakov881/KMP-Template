@@ -283,7 +283,7 @@ private val SNMP_PORT_ROW = Regex(
 )
 
 private val SNMP_PORT_INDEX = Regex(
-    """id=['"]l_(\d+)['"]""",
+    """id=['"]l_(\d*)['"]""",
     RegexOption.IGNORE_CASE,
 )
 
@@ -293,15 +293,18 @@ private val SNMP_PORT_BG = Regex(
 )
 
 internal fun parseSnmpPortsHtml(portsHtml: String): List<SwSnmpPort> =
-    SNMP_PORT_ROW.findAll(portsHtml).mapNotNull { match ->
+    SNMP_PORT_ROW.findAll(portsHtml).mapIndexedNotNull { ord, match ->
         val row = match.groupValues[1]
-        val index = SNMP_PORT_INDEX.find(row)?.groupValues?.get(1)?.toIntOrNull()
-            ?: return@mapNotNull null
+        // Offline/odd devices may send id="l_" / value="" — still a real port row (e.g. eth0).
+        val indexMatch = SNMP_PORT_INDEX.find(row) ?: return@mapIndexedNotNull null
+        val index = indexMatch.groupValues[1].toIntOrNull() ?: (ord + 1)
         val cells = TD_CELL.findAll(row).map { plainText(it.groupValues[1]) }.toList()
+        val name = cells.getOrNull(1).orEmpty()
+        if (name.isBlank() && cells.all { it.isBlank() }) return@mapIndexedNotNull null
         // checkbox | name | type | vlan | description | tag
         SwSnmpPort(
             index = index,
-            name = cells.getOrNull(1).orEmpty(),
+            name = name,
             type = cells.getOrNull(2).orEmpty(),
             vlan = cells.getOrNull(3).orEmpty(),
             description = cells.getOrNull(4).orEmpty(),

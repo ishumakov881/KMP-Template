@@ -51,6 +51,9 @@ fun App(
     swRepository: NosSwRepository? = null,
     /** Same CookieJar client as API — Coil mrtg/pic PNGs need PHPSESSID. */
     httpClient: HttpClient? = null,
+    /** Deep link / intent: open native SNMP after auth (`/sw/snmp/{ip}`). */
+    pendingSnmpIp: String? = null,
+    onPendingSnmpConsumed: () -> Unit = {},
 ) {
     var sessionPrefs by remember { mutableStateOf(ThemePrefs()) }
     val prefs = themeSettings?.prefs ?: sessionPrefs
@@ -150,6 +153,8 @@ fun App(
                 },
                 mapRepository = resolvedMap,
                 swRepository = resolvedSw,
+                pendingSnmpIp = pendingSnmpIp,
+                onPendingSnmpConsumed = onPendingSnmpConsumed,
             )
         }
     }

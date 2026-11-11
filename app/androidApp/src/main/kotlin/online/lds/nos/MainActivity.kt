@@ -1,5 +1,6 @@
 package online.lds.nos
 
+import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -7,6 +8,9 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.tooling.preview.Preview
 import com.russhwolf.settings.SharedPreferencesSettings
 import online.lds.nos.data.AppPreferences
@@ -19,10 +23,12 @@ import net.lds.online.network.nos.createNosHttpClient
 
 class MainActivity : ComponentActivity() {
     private var lastBackPressedTime: Long = 0
+    private var pendingSnmpIp by mutableStateOf<String?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        pendingSnmpIp = snmpIpFrom(intent)
 
         val prefs = SharedPreferencesSettings(
             getSharedPreferences("nos", MODE_PRIVATE),
@@ -61,8 +67,23 @@ class MainActivity : ComponentActivity() {
                 swRepository = swRepository,
                 // Same CookieJar as API — Coil loads `/inc/other/rrd/{ip}/nolegend.png` (empty graph PNG ok).
                 httpClient = client,
+                pendingSnmpIp = pendingSnmpIp,
+                onPendingSnmpConsumed = { pendingSnmpIp = null },
             )
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        pendingSnmpIp = snmpIpFrom(intent)
+    }
+
+    private fun snmpIpFrom(intent: Intent?): String? {
+        if (intent == null) return null
+        NosDeepLinks.snmpIpFromExtra(intent.getStringExtra(NosDeepLinks.EXTRA_SNMP_IP))
+            ?.let { return it }
+        return NosDeepLinks.snmpIpFromPath(intent.data?.path)
     }
 }
 

@@ -75,12 +75,16 @@
   Изм. 2026-11-10: checkbox show/hide; панели снизу → TopStart (не кроют зум).
 - [x] U6 — Иконки маркеров на карте совпадают с легендой/markgen: `LeanMapMarker.resolvedIconUrl()` (`icon` с сервера, иначе catalog по `layer`) → osmdroid `Marker.icon` через `MarkerIconCache` (не дефолтный пин).
   Verify: свичи/узлы/wifi на карте цветными PNG с `nos.lds.online/images/map/...`, как в легенде; уникальные URL кэшируются.
-- [ ] U7 — Клик по маркеру (все типы sw/uzel/pon/wifi/…) открывает попап паритета вебу: поля IP/узел/место/модель; **Ping** (`ajaxping`); **Графики** → `/sw/pic/{ip}`; **Узел** → `/sw/{id}`; **SNMP** — те же данные, что веб тянет в UI (`GET /sw/snmp/{ip}` shell + `ajax/ajaxsnmp.php`: на open как веб `LabelOff`→`mode=label_off`, `Ports`→`mode=new_port_description`), показ в **своём** Compose UI (`SnmpScreen`), **не** WebView и не браузер; **техработы** (`maintenance` + комментарий).
-  Verify: тап маркер → SNMP → нативный список портов + label/free из ajaxsnmp; в коде нет `openUri(.../sw/snmp/)`; Ping/Графики/Узел/техработы как раньше.
+- [x] U7 — Клик по маркеру (все типы sw/uzel/pon/wifi/…) открывает попап паритета вебу: поля IP/узел/место/модель; **Ping** (`ajaxping`); **Графики** → `/sw/pic/{ip}`; **Узел** → `/sw/{id}`; **SNMP** — те же данные, что веб тянет в UI (`GET /sw/snmp/{ip}` shell + `ajax/ajaxsnmp.php`: на open как веб `LabelOff`→`mode=label_off`, `Ports`→`mode=new_port_description`), показ в **своём** Compose UI (`SnmpScreen`), **не** WebView и не браузер; **техработы** (`maintenance` + комментарий). FDB/RMON/Getmac — позже, не блокер закрытия SNMP-базы.
+  Verify: тап маркер / deep link → SNMP → нативный список портов + label/free из ajaxsnmp; в коде нет `openUri(.../sw/snmp/)`; Ping/Графики/Узел/техработы как раньше.
   Изм. 2026-11-10: было bare InfoWindow name/type → полный попап как веб.
   Изм. 2026-11-11: SNMP не в браузер — `Overlay.SwSnmpDetail` + `NosSwRepository.snmpPage`.
   Изм. 2026-11-11: принцип — веб-UI только подтягивает ajax; мобильный UI подтягивает **те же** mode’ы, свой экран.
-- [ ] U16 — Попап маркера: **Копировать** (буфер) и **Поделиться** (системный share sheet) — plain text только из реальных полей `LeanMapMarker` / `formatShareText()` (имя/тип/слой/IP/узел/место/модель/серийник/MAC/техработы/координаты + URL `/sw/{id}`, `/sw/pic/{ip}`, `/sw/snmp/{ip}` если ключи есть). Ничего не выдумывать. Фича mobile, на вебе её нет.
+  Изм. 2026-11-11: парсер портов принимает `id="l_"` без цифры (недоступный свич / eth0), не показывает ложное «Нет данных портов».
+  Изм. 2026-11-11: SNMP-база закрыта (open = label+ports + deep link); доп. mode’ы — отдельный шаг.
+- [x] U17 — Deep link для теста SNMP: `VIEW https://nos.lds.online/sw/snmp/{ip}` (manifest pathPrefix) или extra `snmp_ip` → после логина сразу `Overlay.SwSnmpDetail` (не браузер). `MainActivity` `singleTop` + `onNewIntent`.
+  Verify: `adb shell am start -a android.intent.action.VIEW -d "https://nos.lds.online/sw/snmp/10.0.93.243"` (или `-e snmp_ip 10.0.93.243`) открывает нативный SNMP с этим IP.
+- [x] U16 — Попап маркера: **Копировать** (буфер) и **Поделиться** (системный share sheet) — plain text только из реальных полей `LeanMapMarker` / `formatShareText()` (имя/тип/слой/IP/узел/место/модель/серийник/MAC/техработы/координаты + URL `/sw/{id}`, `/sw/pic/{ip}`, `/sw/snmp/{ip}` если ключи есть). Ничего не выдумывать. Фича mobile, на вебе её нет.
   Verify: тап маркер → «Копировать»/«Поделиться»; в тексте есть IP/узел если они на маркере; пустых выдуманных полей нет; Android share sheet открывается.
 - [x] U8 — Блок **Обновление** как веб `#intval` / `#more_intval`: интервалы 10 секунд / 1 минута / 5 минут (default 5 мин = 300000); `setInterval` → `loadData(isRefreshing)`; UI `MapRefreshPanel` рядом с легендой.
   Verify: свернуть/развернуть «Обновление»; выбрать «10 секунд» — markgen перезапрашивается ~каждые 10с; после смены интервала таймер перезапускается; дефолт 5 минут.
@@ -100,8 +104,8 @@
 - [x] D2 — Легенда карты — статический OOP-каталог (`MapLegendItem` / `MapLegendGroup` / `NosMapLegendCatalog`, паритет веб) **плюс** авто-дополнение: неизвестные `layer` из markgen → `discoverUnknownLayers` (title/icon с маркера), в свою группу по `type` или в «Другие»; `snapshotFor` даёт counts. Не парсить `/osm`.
   Verify: `NosMapLegendCatalog.snapshotFor` / `discoverUnknownLayers`; известные слои из каталога; новый `layer_*` в ответе появляется в легенде без правки каталога; `MapViewModel` кладёт `legend` в `MapUiData`.
   Изм. 2026-11-10: было только static catalog → static + discovery из markgen.
-- [x] D3 — Узлы `/sw`: нет JSON-списка — `NosSwRepository` тянет HTML `GET /sw`, `GET /sw/{id}`, `GET /sw/pic/{path}` (тот же CookieJar/сессия), парсит `#s_sw` → `SwSite`, таблицу → `SwDevice`/`SwSitePage`, pic → `SwPicPage`/`SwPicGraph`. Не хардкодить меню/список PNG из HTML-снимка чата.
-  Verify: `sites` / `sitePage` / `picPage`; `NosEndpoints.swPic`; парсеры `parseSwSites` / `parseSwSitePage` / `parseSwPicPage`; `SwDevice.mrtgUrl` → `nolegend.png`; UI только через репозиторий.
+- [x] D3 — Узлы `/sw`: нет JSON-списка — `NosSwRepository` тянет HTML `GET /sw`, `GET /sw/{id}`, `GET /sw/pic/{path}`, SNMP `GET /sw/snmp/{ip}` + `ajaxsnmp.php` (тот же CookieJar/сессия); парсит `#s_sw` → `SwSite`, таблицу → `SwDevice`/`SwSitePage`, pic → `SwPicPage`/`SwPicGraph`, snmp → `SwSnmpPage`. Не хардкодить меню/список PNG из HTML-снимка чата.
+  Verify: `sites` / `sitePage` / `picPage` / `snmpPage`; `NosEndpoints.swPic`/`swSnmp`/`AJAX_SNMP`; парсеры; `SwDevice.mrtgUrl` → `nolegend.png`; UI только через репозиторий.
 
 ## B. Сборка
 

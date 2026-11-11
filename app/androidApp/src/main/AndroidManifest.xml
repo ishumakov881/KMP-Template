@@ -12,11 +12,22 @@
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
         <activity
             android:exported="true"
+            android:launchMode="singleTop"
             android:name=".MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- Smoke / share: open native SNMP for https://nos.lds.online/sw/snmp/{ip} -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:host="nos.lds.online"
+                    android:pathPrefix="/sw/snmp/"
+                    android:scheme="https" />
             </intent-filter>
         </activity>
     </application>
