@@ -67,9 +67,7 @@ fun MapScreen(
 ) {
     val state by viewModel.state.collectAsState()
     Box(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(padding),
+        modifier = modifier.fillMaxSize().padding(padding),
     ) {
         when (val content = state.contentState) {
             is UiState.Error -> ErrorView(
