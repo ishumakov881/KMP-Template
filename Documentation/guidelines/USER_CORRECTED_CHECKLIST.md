@@ -122,6 +122,8 @@
 - [x] B2 — Android app id: `namespace` + `applicationId` = `online.lds.nos` (reverse DNS `nos.lds.online`). Исходники `:app:*` перенесены `git mv` `dev/walhalla/lazagne` → `online/lds/nos`, package/import обновлены. `:kmp:*` / `core` / `server` не трогать.
   Verify: `app/androidApp/build.gradle.kts`; пути `app/**/kotlin/online/lds/nos/**`; манифест `.MainActivity`; установка APK `online.lds.nos`.
   Изм. 2026-11-10: убран хардкод Desktop `debug.keystore` / `lds.signing.dir` — только global gradle props.
+- [x] B3 — Shell scaffold через expect/actual `NosAppScaffold`: **Android/iOS** — `CupertinoBottomSheetScaffold` + `systemBars`/`navigationBars`; **desktop JVM / JS / Wasm** — `CupertinoScaffold` + zero insets (cupertino `systemBars` на JVM → `NoSuchMethodError`). Compose `1.12.0`.
+  Verify: `NosAppScaffold.jvm.kt` / `.android.kt`; `CorporateShell` только через `NosAppScaffold`; desktop `:app:desktopApp:run` после login без AWT Exception; Android APK — bottom sheet scaffold.
 
 ## X. Процесс
 

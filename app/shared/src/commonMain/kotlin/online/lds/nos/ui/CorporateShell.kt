@@ -17,7 +17,6 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -28,7 +27,6 @@ import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
 import io.github.alexzhirkevich.cupertino.CupertinoBottomSheetContent
-import io.github.alexzhirkevich.cupertino.CupertinoBottomSheetScaffold
 import io.github.alexzhirkevich.cupertino.CupertinoButton
 import io.github.alexzhirkevich.cupertino.CupertinoButtonDefaults
 import io.github.alexzhirkevich.cupertino.CupertinoIcon
@@ -60,8 +58,6 @@ import io.github.alexzhirkevich.cupertino.icons.outlined.Plus
 import io.github.alexzhirkevich.cupertino.icons.outlined.ServerRack
 import io.github.alexzhirkevich.cupertino.icons.outlined.SquareAndArrowUp
 import io.github.alexzhirkevich.cupertino.icons.outlined.Trash
-import io.github.alexzhirkevich.cupertino.rememberCupertinoBottomSheetScaffoldState
-import io.github.alexzhirkevich.cupertino.rememberCupertinoSheetState
 import io.github.alexzhirkevich.cupertino.section.CupertinoLinkIcon
 import io.github.alexzhirkevich.cupertino.section.link
 import io.github.alexzhirkevich.cupertino.section.section
@@ -151,9 +147,7 @@ fun CorporateShell(
     }
     val switchesViewModel = remember(mapRepository) { SwitchesViewModel(mapRepository) }
     val sitesViewModel = remember(swRepository) { SitesViewModel(swRepository) }
-    val scope = rememberCoroutineScope()
-    val sheetState = rememberCupertinoSheetState()
-    val scaffoldState = rememberCupertinoBottomSheetScaffoldState(sheetState)
+    var actionsSheetOpen by remember { mutableStateOf(false) }
 
     // Deep link / adb: open native SNMP (same data as web /sw/snmp/{ip}).
     LaunchedEffect(pendingSnmpIp) {
@@ -165,17 +159,17 @@ fun CorporateShell(
     val top = stack.lastOrNull()
     val push: (Overlay) -> Unit = { stack = stack + it }
     val pop: () -> Unit = { stack = stack.dropLast(1) }
-    val hideSheet: () -> Unit = { scope.launch { sheetState.hide() } }
+    val hideSheet: () -> Unit = { actionsSheetOpen = false }
 
     // One back chain (ldsonline): sheet → overlay → home tab. On Map+empty → MainActivity double-back exit.
     val consumeSystemBack =
-        sheetState.isVisible || stack.isNotEmpty() || tab != MainTab.Map
+        actionsSheetOpen || stack.isNotEmpty() || tab != MainTab.Map
     NavigationBackHandler(
         state = rememberNavigationEventState(NavigationEventInfo.None),
         isBackEnabled = consumeSystemBack,
         onBackCompleted = {
             when {
-                sheetState.isVisible -> hideSheet()
+                actionsSheetOpen -> hideSheet()
                 stack.isNotEmpty() -> pop()
                 else -> {
                     tab = MainTab.Map
@@ -185,11 +179,13 @@ fun CorporateShell(
         },
     )
 
-    CupertinoBottomSheetScaffold(
-        scaffoldState = scaffoldState,
+    NosAppScaffold(
+        actionsSheetOpen = actionsSheetOpen,
+        onActionsSheetChange = { actionsSheetOpen = it },
         sheetContent = { RequestActionsSheet(onAction = hideSheet) },
         topBar = {
             CupertinoTopAppBar(
+                windowInsets = nosTopBarWindowInsets(),
                 navigationIcon = {
                     if (top != null) {
                         val backTitle = when (val prev = stack.getOrNull(stack.size - 2)) {
@@ -220,7 +216,7 @@ fun CorporateShell(
                 actions = {
                     when (top) {
                         is Overlay.RequestForm -> CupertinoIconButton(
-                            onClick = { scope.launch { sheetState.show() } },
+                            onClick = { actionsSheetOpen = true },
                         ) {
                             CupertinoIcon(CupertinoIcons.Default.EllipsisCircle, contentDescription = "Ещё")
                         }
@@ -265,7 +261,7 @@ fun CorporateShell(
             )
         },
         bottomBar = {
-            CupertinoNavigationBar {
+            CupertinoNavigationBar(windowInsets = nosNavBarWindowInsets()) {
                 MainTab.entries.forEach { item ->
                     val selected = item == tab
                     CupertinoNavigationBarItem(
