@@ -97,6 +97,8 @@
   Verify: Узлы → Back → Карта (иконка Карта сразу selected); Карта → Back → toast; второй Back <2с → `finish()`; из детали узла Back сначала pop overlay.
 - [x] U15 — Main tabs keep-alive: Карта/Свичи/Узлы остаются в composition (`TabKeepAlive` alpha/zIndex), не через `AnimatedContent` на tab. Смена tab/Back не пересобирает osmdroid-маркеры и не тормозит подсветку bottom-nav.
   Verify: Узлы → Back → иконка «Карта» активна сразу, без ожидания «прогрузки» карты; уход/возврат на Карту без полной пересборки overlays.
+- [x] U18 — Экран **Карта** не ждёт полный markgen за `BaseScreenLayout`/shimmer: сразу shell (тайлы osmdroid + заглушка легенды из каталога, чекбоксы неактивны пока нет маркеров) и стриминг типов markgen по мере ответа; индикатор у панелей пока `markersLoading`. Остальные экраны по-прежнему на `BaseScreenLayout`.
+  Verify: холодный вход на Карту — карта/легенда видны до конца всех 9 запросов; маркеры появляются пачками; нет полноэкранного спиннера ~3с; `MapScreen` без `BaseScreenLayout`; `MapViewModel.loadMarkersProgressive`.
 
 ## D. Данные
 

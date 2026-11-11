@@ -29,6 +29,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -52,6 +53,8 @@ fun MapLegendPanel(
     onToggleGroup: (groupId: String, enabled: Boolean) -> Unit,
     modifier: Modifier = Modifier,
     initiallyExpanded: Boolean = true,
+    /** False while markgen streams in — show stub groups, ignore checkbox taps. */
+    interactionsEnabled: Boolean = true,
 ) {
     if (snapshot.isEmpty) return
 
@@ -62,6 +65,7 @@ fun MapLegendPanel(
     Column(
         modifier = modifier
             .widthIn(max = 280.dp)
+            .alpha(if (interactionsEnabled) 1f else 0.55f)
             .clip(shape)
             .background(surface)
             .padding(horizontal = 12.dp, vertical = 8.dp),
@@ -106,6 +110,7 @@ fun MapLegendPanel(
                     LegendGroupBlock(
                         group = group,
                         visibleLayers = visibleLayers,
+                        interactionsEnabled = interactionsEnabled,
                         onToggleLayer = onToggleLayer,
                         onToggleGroup = onToggleGroup,
                     )
@@ -119,6 +124,7 @@ fun MapLegendPanel(
 private fun LegendGroupBlock(
     group: MapLegendGroupState,
     visibleLayers: Set<String>,
+    interactionsEnabled: Boolean,
     onToggleLayer: (String) -> Unit,
     onToggleGroup: (String, Boolean) -> Unit,
 ) {
@@ -135,7 +141,7 @@ private fun LegendGroupBlock(
                 CupertinoCheckBox(
                     checked = groupChecked,
                     onCheckedChange = { checked ->
-                        onToggleGroup(group.group.id, checked)
+                        if (interactionsEnabled) onToggleGroup(group.group.id, checked)
                     },
                 )
                 Spacer(Modifier.width(6.dp))
@@ -150,7 +156,9 @@ private fun LegendGroupBlock(
             LegendItemRow(
                 row = row,
                 checked = row.item.leafletLayer?.let { it in visibleLayers } ?: false,
+                interactionsEnabled = interactionsEnabled,
                 onCheckedChange = { enabled ->
+                    if (!interactionsEnabled) return@LegendItemRow
                     val layer = row.item.leafletLayer ?: return@LegendItemRow
                     val isOn = layer in visibleLayers
                     if (enabled != isOn) onToggleLayer(layer)
@@ -164,6 +172,7 @@ private fun LegendGroupBlock(
 private fun LegendItemRow(
     row: MapLegendItemState,
     checked: Boolean,
+    interactionsEnabled: Boolean,
     onCheckedChange: (Boolean) -> Unit,
 ) {
     val item = row.item
@@ -175,7 +184,7 @@ private fun LegendItemRow(
         if (canToggle) {
             CupertinoCheckBox(
                 checked = checked,
-                onCheckedChange = onCheckedChange,
+                onCheckedChange = { if (interactionsEnabled) onCheckedChange(it) },
             )
             Spacer(Modifier.width(6.dp))
         } else {

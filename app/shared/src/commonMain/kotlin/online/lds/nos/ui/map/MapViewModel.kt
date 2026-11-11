@@ -2,9 +2,14 @@ package online.lds.nos.ui.map
 
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import net.lds.online.network.ApiException
 import net.lds.online.network.nos.LeanMapMarker
 import net.lds.online.network.nos.NosMapRepository
@@ -12,6 +17,7 @@ import net.lds.online.network.nos.legend.MapLegendSnapshot
 import net.lds.online.network.nos.legend.NosMapLegendCatalog
 import net.lds.online.ui.base.BaseEvent
 import net.lds.online.ui.base.BaseViewModel
+import net.lds.online.ui.base.ScreenState
 import net.lds.online.ui.base.UiState
 
 data class MapUiData(
@@ -28,6 +34,11 @@ data class MapUiData(
     val pingResult: String? = null,
     val actionError: String? = null,
     val maintenancePromptVisible: Boolean = false,
+    /**
+     * Markgen still in flight (initial or refresh). Map shell stays visible;
+     * legend toggles stay inactive until the first successful type batch.
+     */
+    val markersLoading: Boolean = false,
 ) {
     val visibleMarkers: List<LeanMapMarker>
         get() = markers.filter { it.layer in visibleLayers }
@@ -36,6 +47,10 @@ data class MapUiData(
         get() = legend.groups
             .flatMap { group -> group.items.mapNotNull { it.item.leafletLayer } }
             .toSet()
+
+    /** Legend checkboxes: inactive while first paint still waiting for any markers. */
+    val legendInteractive: Boolean
+        get() = !markersLoading || markers.isNotEmpty()
 }
 
 sealed interface MapEvent : BaseEvent {
@@ -62,45 +77,35 @@ class MapViewModel(
 ) : BaseViewModel<MapUiData, MapEvent>() {
 
     private var refreshJob: Job? = null
+    private var loadJob: Job? = null
+    private val mergeMutex = Mutex()
 
     init {
-        loadData()
+        // Shell first (tiles + legend stub), then stream markgen types like the web map.
+        _state.value = ScreenState(contentState = UiState.Success(emptyShell()))
+        loadMarkersProgressive(isRefreshing = false)
         restartAutoRefresh(MapRefreshInterval.WebDefault)
     }
 
+    /**
+     * Fallback for [BaseViewModel.loadData] — map UI uses [loadMarkersProgressive] instead
+     * so the screen never sits on a full-screen Loading shimmer waiting for all 9 types.
+     */
     override suspend fun onFetchData(): MapUiData {
-        val previous = currentDataOrNull()
+        val previous = currentDataOrNull() ?: emptyShell()
         val types = enabledTypes.distinct()
         val markers = mapRepository.markgenMany(types)
-        val loaded = types.toSet()
-        val legend = NosMapLegendCatalog.snapshotFor(
-            loadedTypes = loaded,
+        return buildData(
+            previous = previous,
             markers = markers,
-        )
-        val allLayers = legend.groups
-            .flatMap { group -> group.items.mapNotNull { it.item.leafletLayer } }
-            .toSet()
-        val visibleLayers = mergeVisibility(
-            previousVisible = previous?.visibleLayers.orEmpty(),
-            previousAll = previous?.allLegendLayers.orEmpty(),
-            newAll = allLayers,
-        )
-        val selected = previous?.selectedMarker?.let { prev ->
-            markers.firstOrNull { it.samePointAs(prev) }
-        }
-        return MapUiData(
-            markers = markers,
-            loadedTypes = loaded,
-            legend = legend,
-            visibleLayers = visibleLayers,
-            refreshInterval = previous?.refreshInterval ?: MapRefreshInterval.WebDefault,
-            selectedMarker = selected,
+            loadedTypes = types.toSet(),
+            markersLoading = false,
         )
     }
 
     override fun onBusinessEvent(event: MapEvent) {
         when (event) {
-            MapEvent.Refresh -> loadData(isRefreshing = true)
+            MapEvent.Refresh -> loadMarkersProgressive(isRefreshing = true)
             is MapEvent.ToggleLayer -> toggleLayer(event.leafletLayer)
             is MapEvent.ToggleGroup -> toggleGroup(event.groupId, event.enabled)
             is MapEvent.SetRefreshInterval -> setRefreshInterval(event.interval)
@@ -138,6 +143,7 @@ class MapViewModel(
     override fun onConfirmActionWithPassword(pendingEvent: BaseEvent?) = Unit
 
     override fun onCleared() {
+        loadJob?.cancel()
         refreshJob?.cancel()
         super.onCleared()
     }
@@ -153,9 +159,126 @@ class MapViewModel(
         refreshJob = viewModelScope.launch {
             while (isActive) {
                 delay(interval.millis)
-                loadData(isRefreshing = true)
+                loadMarkersProgressive(isRefreshing = true)
             }
         }
+    }
+
+    /**
+     * Progressive markgen: keep map/legend shell on screen; merge each type as it returns.
+     */
+    private fun loadMarkersProgressive(@Suppress("UNUSED_PARAMETER") isRefreshing: Boolean) {
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
+            ensureSuccessShell()
+            val types = enabledTypes.distinct()
+            var successCount = 0
+            var lastError: Exception? = null
+
+            coroutineScope {
+                types.map { type ->
+                    async {
+                        runCatching { mapRepository.markgen(type) }
+                            .onSuccess { list ->
+                                mergeMutex.withLock {
+                                    applyTypeBatch(type, list)
+                                    successCount++
+                                }
+                            }
+                            .onFailure { e ->
+                                lastError = e as? Exception ?: Exception(e)
+                            }
+                    }
+                }.awaitAll()
+            }
+
+            mergeMutex.withLock {
+                val data = currentDataOrNull()
+                if (successCount == 0 && data?.markers.isNullOrEmpty()) {
+                    val apiEx = (lastError as? ApiException) ?: lastError?.let { ApiException.from(it) }
+                    _state.value = ScreenState(
+                        contentState = UiState.Error(
+                            apiEx?.getUserMessage() ?: lastError?.message ?: "Ошибка загрузки карты",
+                        ),
+                    )
+                } else {
+                    updateData { it.copy(markersLoading = false) }
+                }
+            }
+        }
+    }
+
+    private fun ensureSuccessShell() {
+        if (currentDataOrNull() == null) {
+            // Hard Error → retry, or unexpected non-Success: recreate tiles+legend shell.
+            _state.value = ScreenState(contentState = UiState.Success(emptyShell()))
+            return
+        }
+        // Refresh keeps previous markers on the map while types re-stream.
+        updateData { it.copy(markersLoading = true) }
+    }
+
+    private fun emptyShell(): MapUiData {
+        val catalogTypes = enabledTypes.toSet()
+        val legend = NosMapLegendCatalog.snapshotFor(
+            loadedTypes = catalogTypes,
+            markers = emptyList(),
+        )
+        return MapUiData(
+            markers = emptyList(),
+            loadedTypes = emptySet(),
+            legend = legend,
+            visibleLayers = legend.groups
+                .flatMap { group -> group.items.mapNotNull { it.item.leafletLayer } }
+                .toSet(),
+            markersLoading = true,
+        )
+    }
+
+    private fun applyTypeBatch(type: String, batch: List<LeanMapMarker>) {
+        val previous = currentDataOrNull() ?: emptyShell()
+        val markers = previous.markers.filter { it.type != type } + batch
+        val loaded = previous.loadedTypes + type
+        val next = buildData(
+            previous = previous,
+            markers = markers,
+            loadedTypes = loaded,
+            markersLoading = true,
+        )
+        _state.value = _state.value.copy(contentState = UiState.Success(next))
+    }
+
+    private fun buildData(
+        previous: MapUiData,
+        markers: List<LeanMapMarker>,
+        loadedTypes: Set<String>,
+        markersLoading: Boolean,
+    ): MapUiData {
+        // Legend stub uses full enabled set so groups appear before their markgen returns.
+        val legend = NosMapLegendCatalog.snapshotFor(
+            loadedTypes = enabledTypes.toSet(),
+            markers = markers,
+        )
+        val allLayers = legend.groups
+            .flatMap { group -> group.items.mapNotNull { it.item.leafletLayer } }
+            .toSet()
+        val visibleLayers = mergeVisibility(
+            previousVisible = previous.visibleLayers,
+            previousAll = previous.allLegendLayers,
+            newAll = allLayers,
+        )
+        val selected = previous.selectedMarker?.let { prev ->
+            markers.firstOrNull { it.samePointAs(prev) }
+        }
+        return MapUiData(
+            markers = markers,
+            loadedTypes = loadedTypes,
+            legend = legend,
+            visibleLayers = visibleLayers,
+            refreshInterval = previous.refreshInterval,
+            selectedMarker = selected,
+            markersLoading = markersLoading,
+        )
     }
 
     private fun pingSelected() {
