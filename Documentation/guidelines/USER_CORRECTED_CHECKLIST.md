@@ -26,9 +26,10 @@
 - [x] P3 — Нативная авторизация = session-login как у веба: GET `/login` → POST `login`/`password`/`next`/`submit-login` → успех только при **302 на next** (или страница карты без формы входа); cookie `PHPSESSID` в Ktor CookieJar. Не считать успехом выдачу PHPSESSID и не использовать `get_count` как proof (он публичный). Неверный пароль не пускает в приложение.
   Verify: `NosAuthRepository.login` бросает на «Неверное имя…» / форме входа; после успеха открывается `/osm` без redirect на login; wrong-password тест/ручная проверка не вызывает `onAuthenticated`.
   Изм. 2026-11-10: было → успех по PHPSESSID+`get_count` (ложный пропуск) → стало → web 302/страница карты.
-- [ ] P5 — Сессия переживает перезапуск приложения: `PHPSESSID` в russhwolf через универсальный `AppPreferences` (ключ `AppPreferences.KEY_PHPSESSID` = `pref_nos_phpsessid`); backend prefs — `SharedPreferencesSettings` файл `nos` (тот же instance, что у `ThemeSettings`); при старте `restoreSession` + проверка `/osm`; протухшая сессия — `remove(KEY_PHPSESSID)` и снова login. Preview — `AppPreferences(InMemorySettings())`.
-  Verify: `MainActivity` → `AppPreferences(prefs)`; нет класса `NosSessionStore`; войти → убить процесс → открыть снова без формы входа (пока серверная сессия жива); после clear prefs или invalid cookie — login снова.
-  Изм. 2026-11-10: было `NosSessionStore` → стало `AppPreferences` + ключ в companion (паттерн ldsonline).
+- [x] P5 — Сессия переживает перезапуск: `PHPSESSID` в `AppPreferences.KEY_PHPSESSID`; prefs файл `nos`. Старт: `restoreSession` → `SessionRestoreResult`: **Valid** (HTML карты) / **Invalid** (форма логина → `remove` + login) / **Unreachable** (нет сети/таймаут → **не** сбрасывать cookie, пустить в app). Preview — `InMemorySettings`.
+  Verify: онлайн + живая сессия → сразу карта; airplane + сохранённый PHPSESSID → не login-экран, карта из Room если офлайн-кэш вкл; сервер вернул signin → login и cookie стёрт.
+  Изм. 2026-11-10: было `NosSessionStore` → `AppPreferences`.
+  Изм. 2026-11-12: третье состояние Unreachable — offline не разлогинивает.
 - [ ] P4 — Первый продуктовый экран NOS на compose-cupertino (кит из `Начальный промпт.md`): форма авторизации только API Cupertino (section/textField/button/dialog/activityIndicator), без Material.
   Verify: `LoginScreen.kt` использует Cupertino + `ScreenList`; нет material3 виджетов на экране входа; сборка `:app:shared:compileKotlinJvm` ок; on-device smoke login UI.
 
@@ -100,8 +101,9 @@
 - [x] U8 — Блок **Обновление** как веб `#intval` / `#more_intval`: интервалы 10 секунд / 1 минута / 5 минут (default 5 мин = 300000); `setInterval` → `loadData(isRefreshing)`; UI `MapRefreshPanel` **над** легендой, старт свёрнут.
   Verify: на Карте «Обновление» выше «Легенда», оба свёрнуты при старте; развернуть → выбрать «10 секунд» — markgen ~каждые 10с; дефолт 5 минут.
   Изм. 2026-11-11: позиция выше легенды; старт свёрнут.
-- [x] U12 — Поле пароля на login маскирует ввод (`PasswordVisualTransformation` + `KeyboardType.Password`), не показывает символы открытым текстом.
-  Verify: `LoginScreen` password `textField` с `visualTransformation = PasswordVisualTransformation()`; на устройстве/desktop точки/буллеты вместо символов.
+- [ ] U12 — Login: свои `CupertinoLoginField` / `CupertinoPasswordField` на `BasicTextField` + токены CupertinoTheme (не `CupertinoTextField` / `section.textField` — у либы modifier на DecorationBox, Autofill слепой). Вшиты `ContentType.Username+Email` / `ContentType.Password`, пароль маскирован, ImeAction Next/Done, `LocalAutofillManager.commit()` на «Вход». Цель — предложение из Android Autofill / Password Manager (системный credential store). Без Material TextField.
+  Verify: `CupertinoCredentialFields.kt` + `LoginScreen`; `contentType` на BTF; на устройстве фокус логина/пароля предлагает сохранённые учётки; визуал в духе Cupertino section.
+  Изм. 2026-11-12: было section.textField+semantics → свои Login/Password поля на BTF из‑за бага cupertino modifier.
 - [x] U13 — Смена bottom-tab не перезагружает markgen/списки: `MapViewModel` / `SwitchesViewModel` / `SitesViewModel` живут в `CorporateShell` (`remember`), не внутри `AnimatedContent` tab content.
   Verify: Карта → Узлы → Карта без повторного полного markgen; список маркеров/легенда на месте; то же для Свичи/Узлы.
 - [x] U14 — Системный Back как ldsonline: **один** `NavigationBackHandler` — sheet → overlay pop → tab≠Карта→Карта; на Карте без overlay — double-back (<2с) выход (`MainActivity` + toast `press_again_to_exit`). Не три отдельных handler’а.

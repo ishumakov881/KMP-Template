@@ -23,6 +23,19 @@ data class NosLoginResult(
 )
 
 /**
+ * Cold-start check of saved PHPSESSID against `GET /osm`.
+ * - [Valid]: server returned map HTML (session alive).
+ * - [Invalid]: server returned login form / auth failure — clear local session.
+ * - [Unreachable]: no network / timeout / DNS / transport error — **keep** local session
+ *   (cookie already injected; offline cache can show Room data).
+ */
+sealed interface SessionRestoreResult {
+    data object Valid : SessionRestoreResult
+    data object Invalid : SessionRestoreResult
+    data object Unreachable : SessionRestoreResult
+}
+
+/**
  * Web-parity session auth.
  *
  * Important: `PHPSESSID` is issued even for anonymous/failed login, and
@@ -84,14 +97,14 @@ class NosAuthRepository(
     }
 
     /**
-     * Inject saved PHPSESSID into CookieJar and verify protected page still opens.
-     * @return true if session is still valid.
+     * Inject saved PHPSESSID into CookieJar, then probe `GET [next]`.
+     * Network failure ≠ logout: see [SessionRestoreResult.Unreachable].
      */
     suspend fun restoreSession(
         phpSessionId: String,
         next: String = "/osm",
-    ): Boolean {
-        if (phpSessionId.isBlank()) return false
+    ): SessionRestoreResult {
+        if (phpSessionId.isBlank()) return SessionRestoreResult.Invalid
         cookies.addCookie(
             requestUrl = Url(NosEndpoints.BASE_URL),
             cookie = Cookie(
@@ -101,8 +114,17 @@ class NosAuthRepository(
                 path = "/",
             ),
         )
-        val body = fetchProtectedPage(next)
-        return !isLoginHtml(body)
+        val body = try {
+            fetchProtectedPage(next)
+        } catch (_: Exception) {
+            // Timeout / DNS / offline / TLS — cannot prove session dead.
+            return SessionRestoreResult.Unreachable
+        }
+        return if (isLoginHtml(body)) {
+            SessionRestoreResult.Invalid
+        } else {
+            SessionRestoreResult.Valid
+        }
     }
 
     fun close() {

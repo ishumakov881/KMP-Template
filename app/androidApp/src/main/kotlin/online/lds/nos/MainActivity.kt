@@ -1,7 +1,9 @@
 package online.lds.nos
 
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
+import android.view.View
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -29,6 +31,9 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            window.decorView.importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_YES
+        }
         pendingSnmpIp = snmpIpFrom(intent)
 
         val prefs = SharedPreferencesSettings(

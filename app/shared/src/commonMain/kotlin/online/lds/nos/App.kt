@@ -33,6 +33,7 @@ import io.ktor.client.plugins.cookies.AcceptAllCookiesStorage
 import net.lds.online.network.nos.NosAuthRepository
 import net.lds.online.network.nos.NosMapRepository
 import net.lds.online.network.nos.NosSwRepository
+import net.lds.online.network.nos.SessionRestoreResult
 import net.lds.online.network.nos.createNosHttpClient
 
 private sealed interface AuthGate {
@@ -110,12 +111,16 @@ fun App(
             return@LaunchedEffect
         }
         gate = AuthGate.Checking
-        val ok = runCatching { resolvedAuth.restoreSession(saved) }.getOrDefault(false)
-        if (ok) {
-            gate = AuthGate.Authenticated
-        } else {
-            appPrefs.remove(AppPreferences.KEY_PHPSESSID)
-            gate = AuthGate.NeedLogin
+        when (resolvedAuth.restoreSession(saved)) {
+            // Alive, or cannot reach server — keep PHPSESSID, enter app (Room if offline cache on).
+            SessionRestoreResult.Valid,
+            SessionRestoreResult.Unreachable,
+            -> gate = AuthGate.Authenticated
+            // Server explicitly showed login form — session dead.
+            SessionRestoreResult.Invalid -> {
+                appPrefs.remove(AppPreferences.KEY_PHPSESSID)
+                gate = AuthGate.NeedLogin
+            }
         }
     }
 
