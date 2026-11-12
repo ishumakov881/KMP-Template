@@ -26,6 +26,7 @@ import io.github.alexzhirkevich.cupertino.CupertinoAlertDialog
 import io.github.alexzhirkevich.cupertino.CupertinoButton
 import io.github.alexzhirkevich.cupertino.CupertinoScaffold
 import io.github.alexzhirkevich.cupertino.CupertinoText
+import io.github.alexzhirkevich.cupertino.CupertinoTopAppBar
 import io.github.alexzhirkevich.cupertino.ExperimentalCupertinoApi
 import io.github.alexzhirkevich.cupertino.default
 import io.github.alexzhirkevich.cupertino.section.CupertinoSectionDefaults
@@ -55,7 +56,13 @@ fun LoginScreen(
         viewModel.onEvent(LoginEvent.Submit)
     }
 
-    CupertinoScaffold {
+    CupertinoScaffold(topBar = { CupertinoTopAppBar(title = {
+        CupertinoText(
+            text = "NOS",
+            style = CupertinoTheme.typography.largeTitle.copy(fontSize = metrics.titleSp.sp),
+            modifier = Modifier.padding(bottom = 8.dp),
+        )
+    }) }) {
         BaseScreenLayout(
             state = state,
             onRefresh = { viewModel.loadData(isRefreshing = true) },
@@ -68,13 +75,13 @@ fun LoginScreen(
             )
 
             ScreenList(listPadding) {
-                item {
-                    CupertinoText(
-                        text = "NOS",
-                        style = CupertinoTheme.typography.largeTitle.copy(fontSize = metrics.titleSp.sp),
-                        modifier = Modifier.padding(bottom = 8.dp),
-                    )
-                }
+//                item {
+//                    CupertinoText(
+//                        text = "NOS",
+//                        style = CupertinoTheme.typography.largeTitle.copy(fontSize = metrics.titleSp.sp),
+//                        modifier = Modifier.padding(bottom = 8.dp),
+//                    )
+//                }
                 item {
                     CupertinoText(
                         text = "Вход в систему",
