@@ -101,9 +101,9 @@
 - [x] U8 — Блок **Обновление** как веб `#intval` / `#more_intval`: интервалы 10 секунд / 1 минута / 5 минут (default 5 мин = 300000); `setInterval` → `loadData(isRefreshing)`; UI `MapRefreshPanel` **над** легендой, старт свёрнут.
   Verify: на Карте «Обновление» выше «Легенда», оба свёрнуты при старте; развернуть → выбрать «10 секунд» — markgen ~каждые 10с; дефолт 5 минут.
   Изм. 2026-11-11: позиция выше легенды; старт свёрнут.
-- [ ] U12 — Login: свои `CupertinoLoginField` / `CupertinoPasswordField` на `BasicTextField` + токены CupertinoTheme (не `CupertinoTextField` / `section.textField` — у либы modifier на DecorationBox, Autofill слепой). Вшиты `ContentType.Username+Email` / `ContentType.Password`, пароль маскирован, ImeAction Next/Done, `LocalAutofillManager.commit()` на «Вход». Цель — предложение из Android Autofill / Password Manager (системный credential store). Без Material TextField.
-  Verify: `CupertinoCredentialFields.kt` + `LoginScreen`; `contentType` на BTF; на устройстве фокус логина/пароля предлагает сохранённые учётки; визуал в духе Cupertino section.
-  Изм. 2026-11-12: было section.textField+semantics → свои Login/Password поля на BTF из‑за бага cupertino modifier.
+- [ ] U12 — Login: `CupertinoLoginField` / `CupertinoPasswordField` на `BasicTextField` + CupertinoTheme; `ContentType`+`ContentDataType.Text` на BTF; форма в **не-lazy** `CupertinoSection`/`Column` (не `LazyColumn`/`section{}` item — Autofill слепнет). `commit()` после успешного логина. Цель — Android Autofill / Password Manager (сохранить + быстрый ввод). Без Material TextField / `CupertinoTextField`.
+  Verify: фокус логина/пароля → предложение из Password Manager; после успешного «Вход» — диалог сохранить пароль; `LoginScreen` без ScreenList для полей.
+  Изм. 2026-11-12: BTF-поля; убрать lazy section; commit после успеха.
 - [x] U13 — Смена bottom-tab не перезагружает markgen/списки: `MapViewModel` / `SwitchesViewModel` / `SitesViewModel` живут в `CorporateShell` (`remember`), не внутри `AnimatedContent` tab content.
   Verify: Карта → Узлы → Карта без повторного полного markgen; список маркеров/легенда на месте; то же для Свичи/Узлы.
 - [x] U14 — Системный Back как ldsonline: **один** `NavigationBackHandler` — sheet → overlay pop → tab≠Карта→Карта; на Карте без overlay — double-back (<2с) выход (`MainActivity` + toast `press_again_to_exit`). Не три отдельных handler’а.

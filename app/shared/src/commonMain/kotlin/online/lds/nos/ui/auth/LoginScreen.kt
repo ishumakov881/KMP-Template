@@ -5,12 +5,15 @@ package online.lds.nos.ui.auth
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -20,17 +23,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalAutofillManager
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import online.lds.nos.ui.ScreenList
 import io.github.alexzhirkevich.cupertino.CupertinoActivityIndicator
 import io.github.alexzhirkevich.cupertino.CupertinoAlertDialog
 import io.github.alexzhirkevich.cupertino.CupertinoButton
 import io.github.alexzhirkevich.cupertino.CupertinoScaffold
+import io.github.alexzhirkevich.cupertino.CupertinoSurface
 import io.github.alexzhirkevich.cupertino.CupertinoText
 import io.github.alexzhirkevich.cupertino.CupertinoTopAppBar
 import io.github.alexzhirkevich.cupertino.ExperimentalCupertinoApi
 import io.github.alexzhirkevich.cupertino.default
+import io.github.alexzhirkevich.cupertino.section.CupertinoSection
 import io.github.alexzhirkevich.cupertino.section.CupertinoSectionDefaults
-import io.github.alexzhirkevich.cupertino.section.section
+import io.github.alexzhirkevich.cupertino.section.SectionItem
 import io.github.alexzhirkevich.cupertino.section.sectionTitle
 import io.github.alexzhirkevich.cupertino.theme.CupertinoTheme
 import net.lds.online.ui.auth.rememberAuthScreenLayout
@@ -50,83 +54,75 @@ fun LoginScreen(
     val authLayout = rememberAuthScreenLayout()
     val metrics = rememberAuthFormLayoutMetrics(windowWidth.authContentMaxWidth)
 
-    val autofillManager = LocalAutofillManager.current
-    val submit = {
-        autofillManager?.commit()
-        viewModel.onEvent(LoginEvent.Submit)
-    }
+    // Autofill: не LazyColumn/section item — Password Manager часто не видит форму в lazy.
+    val submit = { viewModel.onEvent(LoginEvent.Submit) }
 
-    CupertinoScaffold(topBar = { CupertinoTopAppBar(title = {
-        CupertinoText(
-            text = "NOS",
-            style = CupertinoTheme.typography.largeTitle.copy(fontSize = metrics.titleSp.sp),
-            modifier = Modifier.padding(bottom = 8.dp),
-        )
-    }) }) {
+    CupertinoScaffold(topBar = {
+        CupertinoTopAppBar(title = {
+            CupertinoText(
+                text = "NOS",
+                style = CupertinoTheme.typography.largeTitle.copy(fontSize = metrics.titleSp.sp),
+            )
+        })
+    }) { scaffoldPadding ->
         BaseScreenLayout(
             state = state,
             onRefresh = { viewModel.loadData(isRefreshing = true) },
             onRetry = { viewModel.loadData() },
-            modifier = modifier.padding(it),
+            modifier = modifier.padding(scaffoldPadding),
         ) { data ->
-            val listPadding = PaddingValues(
-                horizontal = authLayout.horizontalPadding,
-                vertical = authLayout.verticalPadding,
-            )
-
-            ScreenList(listPadding) {
-//                item {
-//                    CupertinoText(
-//                        text = "NOS",
-//                        style = CupertinoTheme.typography.largeTitle.copy(fontSize = metrics.titleSp.sp),
-//                        modifier = Modifier.padding(bottom = 8.dp),
-//                    )
-//                }
-                item {
+            CupertinoSurface(
+                modifier = Modifier.fillMaxSize(),
+                color = CupertinoTheme.colorScheme.systemGroupedBackground,
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(
+                            horizontal = authLayout.horizontalPadding,
+                            vertical = authLayout.verticalPadding,
+                        ),
+                ){
                     CupertinoText(
                         text = "Вход в систему",
                         style = CupertinoTheme.typography.body,
                         modifier = Modifier.padding(bottom = metrics.contentGap),
                     )
-                }
 
-                section(
-                    title = { CupertinoText("Учётная запись".sectionTitle()) },
-                    caption = {
-                        CupertinoText("Сессия как в веб-NOS: cookie PHPSESSID")
-                    },
-                ) {
-                    // Not section.textField / CupertinoTextField: modifier→DecorationBox, Autofill blind.
-                    item { padding ->
-                        val loginInteraction = remember { MutableInteractionSource() }
-                        val loginFocused by loginInteraction.collectIsFocusedAsState()
-                        val onLoginChange by rememberUpdatedState { v: String ->
-                            viewModel.onEvent(LoginEvent.LoginChanged(v))
+                    CupertinoSection(
+                        title = { CupertinoText("Учётная запись".sectionTitle()) },
+                        caption = {
+                            CupertinoText("Сессия как в веб-NOS: cookie PHPSESSID")
+                        },
+                    ) {
+                        SectionItem {
+                            val loginInteraction = remember { MutableInteractionSource() }
+                            val loginFocused by loginInteraction.collectIsFocusedAsState()
+                            val onLoginChange by rememberUpdatedState { v: String ->
+                                viewModel.onEvent(LoginEvent.LoginChanged(v))
+                            }
+                            CupertinoLoginField(
+                                value = data.login,
+                                onValueChange = { onLoginChange(it) },
+                                interactionSource = loginInteraction,
+                                trailingIcon = {
+                                    CupertinoSectionDefaults.TextFieldClearButton(
+                                        visible = loginFocused && data.login.isNotEmpty(),
+                                        onClick = { onLoginChange("") },
+                                    )
+                                },
+                            )
                         }
-                        CupertinoLoginField(
-                            value = data.login,
-                            onValueChange = { onLoginChange(it) },
-                            modifier = Modifier.padding(padding),
-                            interactionSource = loginInteraction,
-                            trailingIcon = {
-                                CupertinoSectionDefaults.TextFieldClearButton(
-                                    visible = loginFocused && data.login.isNotEmpty(),
-                                    onClick = { onLoginChange("") },
-                                )
-                            },
-                        )
+                        SectionItem {
+                            CupertinoPasswordField(
+                                value = data.password,
+                                onValueChange = { viewModel.onEvent(LoginEvent.PasswordChanged(it)) },
+                                keyboardActions = KeyboardActions(onDone = { submit() }),
+                            )
+                        }
                     }
-                    item { padding ->
-                        CupertinoPasswordField(
-                            value = data.password,
-                            onValueChange = { viewModel.onEvent(LoginEvent.PasswordChanged(it)) },
-                            modifier = Modifier.padding(padding),
-                            keyboardActions = KeyboardActions(onDone = { submit() }),
-                        )
-                    }
-                }
 
-                item {
                     val buttonModifier = if (metrics.primaryButtonFullWidth) {
                         Modifier.fillMaxWidth()
                     } else {
@@ -150,10 +146,8 @@ fun LoginScreen(
                             }
                         }
                     }
-                }
 
-                if (authLayout.formAndAsideInRow) {
-                    item {
+                    if (authLayout.formAndAsideInRow) {
                         CupertinoText(
                             text = "Широкий layout (≥768): phone/tablet landscape",
                             style = CupertinoTheme.typography.footnote,
@@ -178,7 +172,6 @@ fun LoginScreen(
             }
         }
     }
-
 }
 
 @Composable
@@ -188,9 +181,16 @@ fun LoginRoute(
     appPreferences: online.lds.nos.data.AppPreferences,
     modifier: Modifier = Modifier,
 ) {
+    val autofillManager = LocalAutofillManager.current
+    val autofillRef = rememberUpdatedState(autofillManager)
+    val onAuthRef = rememberUpdatedState(onAuthenticated)
     val viewModel = remember(authRepository, appPreferences) {
         LoginViewModel(
-            onAuthenticated = onAuthenticated,
+            onAuthenticated = {
+                // Save prompt: commit после успешного входа (не до сетевого ответа).
+                autofillRef.value?.commit()
+                onAuthRef.value()
+            },
             authRepository = authRepository,
             appPreferences = appPreferences,
         )
