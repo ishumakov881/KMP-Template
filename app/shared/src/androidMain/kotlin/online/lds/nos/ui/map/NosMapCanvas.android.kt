@@ -57,9 +57,16 @@ actual fun NosMapCanvas(
     val context = LocalContext.current
     val iconCache = remember { MarkerIconCache(context.applicationContext) }
     var iconsVersion by remember { mutableIntStateOf(0) }
-    // Place markers only after icon fetch — avoids default-pin → real-icon flash.
+    // Icon markers only (sw/wifi/…) — muffs go to [MftCirclesOverlay], no icon fetch.
     var displayMarkers by remember { mutableStateOf<List<LeanMapMarker>>(emptyList()) }
+    var displayMft by remember { mutableStateOf<List<LeanMapMarker>>(emptyList()) }
     val onMarkerClickState = rememberUpdatedState(onMarkerClick)
+    // One overlay for all muffs (web preferCanvas + circleMarker) — never N× Marker.
+    val mftOverlay = remember {
+        MftCirclesOverlay().also { overlay ->
+            overlay.onItemClick = { lean -> onMarkerClickState.value(lean) }
+        }
+    }
 
     val mapView = remember {
         ensureOsmdroidConfig(context.applicationContext)
@@ -70,18 +77,22 @@ actual fun NosMapCanvas(
             setBuiltInZoomControls(true)
             controller.setZoom(11.0)
             controller.setCenter(GeoPoint(48.4422, 39.3544))
+            overlays.add(mftOverlay)
         }
     }
 
     LaunchedEffect(markers) {
-        if (markers.isEmpty()) {
+        val mft = markers.filter { MftCirclesOverlay.isMftCircleMarker(it) }
+        val icons = markers.filterNot { MftCirclesOverlay.isMftCircleMarker(it) }
+        displayMft = mft
+        if (icons.isEmpty()) {
             displayMarkers = emptyList()
             iconsVersion++
             return@LaunchedEffect
         }
-        val urls = markers.mapNotNull { it.resolvedIconUrl() }.distinct()
+        val urls = icons.mapNotNull { it.resolvedIconUrl() }.distinct()
         iconCache.ensureLoaded(urls)
-        displayMarkers = markers
+        displayMarkers = icons
         iconsVersion++
     }
 
@@ -102,6 +113,12 @@ actual fun NosMapCanvas(
             val existingMarkers = view.overlays.filterIsInstance<Marker>()
             val existingLines = view.overlays.filterIsInstance<Polyline>()
             view.overlays.removeAll((existingMarkers + existingLines).toSet())
+            // Reuse single muff overlay — update points, never N× Marker/icon.
+            mftOverlay.items = displayMft
+            mftOverlay.onItemClick = { lean -> onMarkerClickState.value(lean) }
+            if (mftOverlay !in view.overlays) {
+                view.overlays.add(0, mftOverlay)
+            }
             // Connection lines first → drawn under markers.
             lines.forEach { line ->
                 val polyline = Polyline(view)

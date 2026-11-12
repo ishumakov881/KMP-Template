@@ -124,6 +124,8 @@
   Verify: Шестерёнка → «Выйти из аккаунта» → «Выйти» → форма логина; после kill app снова login (нет `pref_nos_phpsessid`); тема/легенда prefs не сбрасываются.
 - [x] U20 — LeakCanary подключён **только** для debug: `debugImplementation(libs.leakcanary.android)` в `:app:androidApp` (каталог `leakcanary = "2.14"`). Инициализация автоматом через ContentProvider, кода не трогаем. В release не попадает (нет `releaseImplementation`).
   Verify: debug-запуск → logcat `D LeakCanary: LeakCanary is running and ready to detect memory leaks.`; в `assembleRelease` зависимости `leakcanary` нет (`dependencies --configuration releaseRuntimeClasspath`).
+- [x] U21 — **Муфты на карте** (шаг 1): легенда «Муфты» оставляет иконку `/images/map/pon.png` как есть; на карте `layer_pon_mft` / `type=mft` **не** создают osmdroid `Marker` и **не** качают иконку — один переиспользуемый `MftCirclesOverlay` рисует кружки в `draw(Canvas)` (паритет веб `L.circleMarker` + `preferCanvas`), с viewport-куллингом. Тап по кружку → тот же `onMarkerClick`.
+  Verify: легенда — по-прежнему `pon.png`; на карте при включённых Муфтах — чёрные полупрозрачные точки, не pin/`pon.png`; в overlays один `MftCirclesOverlay`, не ~14k `Marker`; `dumpsys gfxinfo` с Муфтами вкл ≈ низкий jank (не ~98% как раньше с Marker).
 
 ## D. Данные
 
