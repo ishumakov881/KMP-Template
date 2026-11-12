@@ -67,7 +67,7 @@ fun LoginScreen(
             state = state,
             onRefresh = { viewModel.loadData(isRefreshing = true) },
             onRetry = { viewModel.loadData() },
-            modifier = modifier,
+            modifier = modifier.padding(it),
         ) { data ->
             val listPadding = PaddingValues(
                 horizontal = authLayout.horizontalPadding,

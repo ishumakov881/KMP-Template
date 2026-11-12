@@ -12,9 +12,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.autofill.ContentDataType
 import androidx.compose.ui.autofill.ContentType
-import androidx.compose.ui.autofill.contentType
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.semantics.contentDataType
+import androidx.compose.ui.semantics.contentType
+import androidx.compose.ui.semantics.password
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -52,13 +56,14 @@ fun CupertinoLoginField(
         placeholder = placeholder,
         visualTransformation = VisualTransformation.None,
         keyboardOptions = KeyboardOptions(
-            keyboardType = KeyboardType.Ascii,
+            keyboardType = KeyboardType.Text,
             imeAction = imeAction,
             autoCorrectEnabled = false,
         ),
         keyboardActions = keyboardActions,
         interactionSource = interactionSource,
         trailingIcon = trailingIcon,
+        isPassword = false,
     )
 }
 
@@ -90,6 +95,7 @@ fun CupertinoPasswordField(
         keyboardActions = keyboardActions,
         interactionSource = interactionSource,
         trailingIcon = trailingIcon,
+        isPassword = true,
     )
 }
 
@@ -106,6 +112,7 @@ private fun CredentialBasicField(
     keyboardActions: KeyboardActions,
     interactionSource: MutableInteractionSource,
     trailingIcon: @Composable (() -> Unit)?,
+    isPassword: Boolean,
 ) {
     val body = CupertinoTheme.typography.body
     val label = CupertinoTheme.colorScheme.label
@@ -116,7 +123,11 @@ private fun CredentialBasicField(
         value = value,
         onValueChange = onValueChange,
         modifier = modifier
-            .contentType(contentType)
+            .semantics {
+                this.contentType = contentType
+                contentDataType = ContentDataType.Text
+                if (isPassword) password()
+            }
             .fillMaxWidth()
             .defaultMinSize(minHeight = 28.dp),
         enabled = enabled,
