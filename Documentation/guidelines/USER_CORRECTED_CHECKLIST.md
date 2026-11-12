@@ -107,7 +107,8 @@
   Verify: на Карте «Обновление» выше «Легенда», оба свёрнуты при старте; развернуть → выбрать «10 секунд» — markgen ~каждые 10с; дефолт 5 минут.
   Изм. 2026-11-11: позиция выше легенды; старт свёрнут.
 - [x] U12 — Login: `CupertinoLoginField` / `CupertinoPasswordField` на `BasicTextField` + CupertinoTheme; `ContentType`+`ContentDataType.Text` на BTF; форма в **не-lazy** `CupertinoSection`/`Column` (не `LazyColumn`/`section{}` item — Autofill слепнет). `commit()` после успешного логина. Цель — Android Autofill / Password Manager (сохранить + быстрый ввод). Без Material TextField / `CupertinoTextField`.
-- [x] U12.1 — Поле пароля: встроенная иконка показа/скрытия пароля в `trailingIcon` (`CupertinoIconButton` + `CupertinoIcons.Default.Eye` / `EyeSlash`, tint = `secondaryLabel`), переключает `VisualTransformation` (None ↔ `PasswordVisualTransformation`). Состояние `revealed` внутри `CupertinoPasswordField`.
+- [x] U12.1 — Поле пароля: встроенная иконка показа/скрытия пароля в `trailingIcon` (`CupertinoIcons.Default.Eye` / `EyeSlash`, tint = `secondaryLabel`), переключает `VisualTransformation` (None ↔ `PasswordVisualTransformation`). Состояние `revealed` внутри `CupertinoPasswordField`. Размер — **как кнопка очистки логина**: голая `CupertinoIcon` c `.size(CupertinoIconDefaults.MediumSize)` + `detectTapGestures` (не `CupertinoIconButton` — у него крупнее touch-таргет/иконка).
+  Verify: на экране входа иконка глаза в поле пароля того же размера, что крестик-очистка в поле логина.
 - [ ] U12.2 — Android Autofill работает только когда на устройстве выбрана служба автозаполнения (`settings get secure autofill_service` ≠ null). Если None — не предлагает ни в NOS, ни в примере ldsonline (это настройка устройства, не код). Включение: Настройки → Пароли и автозаполнение → Google/Samsung Pass, либо `adb shell settings put secure autofill_service "com.google.android.gms/.autofill.service.AutofillService"`.
   Verify: фокус логина/пароля → предложение из Password Manager; после успешного «Вход» — диалог сохранить пароль; `LoginScreen` без ScreenList для полей.
   Изм. 2026-11-12: BTF-поля; убрать lazy section; commit после успеха.
@@ -121,6 +122,8 @@
   Verify: холодный вход на Карту — карта/легенда видны до конца всех 9 запросов; маркеры появляются пачками; нет полноэкранного спиннера ~3с; `MapScreen` без `BaseScreenLayout`; `MapViewModel.loadMarkersProgressive`.
 - [x] U19 — **Выйти из аккаунта** в Настройках (шестерёнка): кнопка внизу `SettingsScreen` → confirm → `remove(KEY_PHPSESSID)` + `AuthGate.NeedLogin` (экран логина). Можно убрать позже без затрагивания темы.
   Verify: Шестерёнка → «Выйти из аккаунта» → «Выйти» → форма логина; после kill app снова login (нет `pref_nos_phpsessid`); тема/легенда prefs не сбрасываются.
+- [x] U20 — LeakCanary подключён **только** для debug: `debugImplementation(libs.leakcanary.android)` в `:app:androidApp` (каталог `leakcanary = "2.14"`). Инициализация автоматом через ContentProvider, кода не трогаем. В release не попадает (нет `releaseImplementation`).
+  Verify: debug-запуск → logcat `D LeakCanary: LeakCanary is running and ready to detect memory leaks.`; в `assembleRelease` зависимости `leakcanary` нет (`dependencies --configuration releaseRuntimeClasspath`).
 
 ## D. Данные
 

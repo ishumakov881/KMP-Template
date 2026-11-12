@@ -19,6 +19,8 @@ dependencies {
 
     implementation(libs.compose.uiToolingPreview)
     debugImplementation(libs.compose.uiTooling)
+    // Memory-leak detection, debug-only (не попадает в release).
+    debugImplementation(libs.leakcanary.android)
 }
 
 android {
