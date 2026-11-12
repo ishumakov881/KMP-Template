@@ -28,7 +28,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
 import coil3.compose.LocalPlatformContext
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
@@ -207,7 +206,7 @@ private fun DeviceRow(
                     )
                     .build()
             }
-            AsyncImage(
+            MrtgGraphImage(
                 model = request,
                 contentDescription = "mrtg ${device.ip}",
                 modifier = Modifier

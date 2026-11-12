@@ -139,6 +139,7 @@ private fun MapShellContent(
     Box(Modifier.fillMaxSize()) {
         NosMapCanvas(
             markers = data.visibleMarkers,
+            lines = data.visibleLines,
             modifier = Modifier.fillMaxSize(),
             onMarkerClick = { marker ->
                 viewModel.onEvent(MapEvent.SelectMarker(marker))

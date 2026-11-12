@@ -13,6 +13,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
+import net.lds.online.network.nos.LeanMapLine
 import net.lds.online.network.nos.LeanMapMarker
 import net.lds.online.network.nos.resolvedIconUrl
 import org.osmdroid.config.Configuration
@@ -20,7 +21,12 @@ import org.osmdroid.tileprovider.tilesource.XYTileSource
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
+import org.osmdroid.views.overlay.Polyline
 import java.io.File
+
+/** Connection polyline style (web sends no color for `line`/`mft_line`). */
+private const val LinkLineColor: Int = 0xCC2F6FEB.toInt()
+private const val LinkLineStrokeWidth: Float = 3f
 
 private val LdsHotTiles = XYTileSource(
     "LDS_HOT",
@@ -44,6 +50,7 @@ private fun ensureOsmdroidConfig(context: Context) {
 @Composable
 actual fun NosMapCanvas(
     markers: List<LeanMapMarker>,
+    lines: List<LeanMapLine>,
     modifier: Modifier,
     onMarkerClick: (LeanMapMarker) -> Unit,
 ) {
@@ -92,8 +99,23 @@ actual fun NosMapCanvas(
             // Depend on iconsVersion so overlays refresh after bitmaps load.
             @Suppress("UNUSED_EXPRESSION")
             iconsVersion
-            val existing = view.overlays.filterIsInstance<Marker>()
-            view.overlays.removeAll(existing.toSet())
+            val existingMarkers = view.overlays.filterIsInstance<Marker>()
+            val existingLines = view.overlays.filterIsInstance<Polyline>()
+            view.overlays.removeAll((existingMarkers + existingLines).toSet())
+            // Connection lines first → drawn under markers.
+            lines.forEach { line ->
+                val polyline = Polyline(view)
+                polyline.setPoints(
+                    listOf(
+                        GeoPoint(line.lat1, line.lng1),
+                        GeoPoint(line.lat2, line.lng2),
+                    ),
+                )
+                polyline.outlinePaint.color = LinkLineColor
+                polyline.outlinePaint.strokeWidth = LinkLineStrokeWidth
+                polyline.infoWindow = null
+                view.overlays.add(polyline)
+            }
             displayMarkers.forEach { item ->
                 val marker = Marker(view)
                 marker.position = GeoPoint(item.lat, item.lng)

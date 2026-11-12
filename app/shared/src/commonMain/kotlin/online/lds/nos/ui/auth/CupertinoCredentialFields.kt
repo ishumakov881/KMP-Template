@@ -9,7 +9,10 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.autofill.AutofillType
@@ -26,7 +29,12 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import io.github.alexzhirkevich.cupertino.CupertinoIcon
+import io.github.alexzhirkevich.cupertino.CupertinoIconButton
 import io.github.alexzhirkevich.cupertino.CupertinoText
+import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
+import io.github.alexzhirkevich.cupertino.icons.outlined.Eye
+import io.github.alexzhirkevich.cupertino.icons.outlined.EyeSlash
 import io.github.alexzhirkevich.cupertino.theme.CupertinoTheme
 
 /**
@@ -80,6 +88,8 @@ fun CupertinoPasswordField(
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
     trailingIcon: @Composable (() -> Unit)? = null,
 ) {
+    var revealed by remember { mutableStateOf(false) }
+    val secondary = CupertinoTheme.colorScheme.secondaryLabel
     CredentialBasicField(
         value = value,
         onValueChange = onValueChange,
@@ -87,7 +97,7 @@ fun CupertinoPasswordField(
         modifier = modifier,
         enabled = enabled,
         placeholder = placeholder,
-        visualTransformation = PasswordVisualTransformation(),
+        visualTransformation = if (revealed) VisualTransformation.None else PasswordVisualTransformation(),
         keyboardOptions = KeyboardOptions(
             keyboardType = KeyboardType.Password,
             imeAction = imeAction,
@@ -95,7 +105,15 @@ fun CupertinoPasswordField(
         ),
         keyboardActions = keyboardActions,
         interactionSource = interactionSource,
-        trailingIcon = trailingIcon,
+        trailingIcon = trailingIcon ?: {
+            CupertinoIconButton(onClick = { revealed = !revealed }) {
+                CupertinoIcon(
+                    imageVector = if (revealed) CupertinoIcons.Default.EyeSlash else CupertinoIcons.Default.Eye,
+                    contentDescription = if (revealed) "Скрыть пароль" else "Показать пароль",
+                    tint = secondary,
+                )
+            }
+        },
         isPassword = true,
     )
 }

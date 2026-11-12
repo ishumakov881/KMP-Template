@@ -43,6 +43,22 @@ class NosMapRepository(
         return parseLeanMarkers(body, type)
     }
 
+    /** Web markgen `type=line` / `mft_line` — flat `lat1,lng1,lat2,lng2` segments (not points). */
+    suspend fun markgenLines(type: String): List<LeanMapLine> {
+        val response = client.submitForm(
+            url = NosEndpoints.AJAX_MAP,
+            formParameters = Parameters.build {
+                append("mode", "markgen")
+                append("type", type)
+            },
+        )
+        val body = response.bodyAsText()
+        if (isLoginHtml(body)) {
+            throw ApiException.clientError(401, "Сессия истекла")
+        }
+        return parseLeanLines(body, type)
+    }
+
     /** Parallel markgen for an explicit enabled set of types. */
     suspend fun markgenMany(types: Collection<String>): List<LeanMapMarker> {
         if (types.isEmpty()) return emptyList()
@@ -129,6 +145,38 @@ class NosMapRepository(
         }
     }
 
+    private fun parseLeanLines(body: String, type: String): List<LeanMapLine> {
+        val trimmed = body.trim()
+        if (trimmed.isEmpty() || trimmed == "null") return emptyList()
+        val element = try {
+            json.parseToJsonElement(trimmed)
+        } catch (e: Exception) {
+            throw ApiException.parsingError(e)
+        }
+        val array = element as? JsonArray
+            ?: throw ApiException.parsingError(
+                IllegalStateException("markgen expected JSON array, got ${element::class.simpleName}"),
+            )
+        val layer = lineLayerForType(type)
+        return array.mapNotNull { node ->
+            val obj = node as? JsonObject ?: return@mapNotNull null
+            val lat1 = obj.coord("lat1") ?: return@mapNotNull null
+            val lng1 = obj.coord("lng1") ?: return@mapNotNull null
+            val lat2 = obj.coord("lat2") ?: return@mapNotNull null
+            val lng2 = obj.coord("lng2") ?: return@mapNotNull null
+            // Web sends a few zero-length segments (p1 == p2) — nothing to draw.
+            if (lat1 == lat2 && lng1 == lng2) return@mapNotNull null
+            LeanMapLine(
+                lat1 = lat1,
+                lng1 = lng1,
+                lat2 = lat2,
+                lng2 = lng2,
+                layer = layer,
+                type = type,
+            )
+        }
+    }
+
     private fun formatAjaxPingResult(body: String): String {
         val trimmed = body.trim()
         if (trimmed.isEmpty()) return "Пустой ответ"
@@ -175,6 +223,18 @@ class NosMapRepository(
         const val TYPE_KTV_AMP = "ktv_amp"
         const val TYPE_LINE = "line"
         const val TYPE_MFT_LINE = "mft_line"
+
+        /** markgen types that return polyline segments (not point markers). */
+        val LINE_TYPES: Set<String> = setOf(TYPE_LINE, TYPE_MFT_LINE)
+
+        fun isLineType(type: String): Boolean = type in LINE_TYPES
+
+        /** Leaflet layer for a line markgen type (server sends no `layer` on segments). */
+        fun lineLayerForType(type: String): String = when (type) {
+            TYPE_LINE -> "layer_line"
+            TYPE_MFT_LINE -> "layer_mft_line"
+            else -> type
+        }
 
         /**
          * Full web markgen set — keep in sync with `/js/map_osm.js` loaders, not a hand-picked subset.

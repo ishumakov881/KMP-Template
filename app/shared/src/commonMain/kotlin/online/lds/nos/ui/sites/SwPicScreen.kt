@@ -25,7 +25,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
 import online.lds.nos.ui.ScreenList
 import io.github.alexzhirkevich.cupertino.CupertinoActivityIndicator
 import io.github.alexzhirkevich.cupertino.CupertinoIcon
@@ -127,7 +126,7 @@ private fun GraphCard(
 ) {
     val interaction = remember { MutableInteractionSource() }
     val canOpen = graph.nextPath != null
-    AsyncImage(
+    MrtgGraphImage(
         model = graph.imageUrl,
         contentDescription = titleHint,
         modifier = Modifier

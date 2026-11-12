@@ -11,6 +11,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import net.lds.online.network.ApiException
+import net.lds.online.network.nos.LeanMapLine
 import net.lds.online.network.nos.LeanMapMarker
 import net.lds.online.network.nos.NosMapRepository
 import net.lds.online.network.nos.legend.MapLegendSnapshot
@@ -24,6 +25,8 @@ import online.lds.nos.data.AppPreferences
 
 data class MapUiData(
     val markers: List<LeanMapMarker> = emptyList(),
+    /** Connection segments (`layer_line` / `layer_mft_line`) — drawn as polylines, not point markers. */
+    val lines: List<LeanMapLine> = emptyList(),
     val loadedTypes: Set<String> = emptySet(),
     val legend: MapLegendSnapshot = MapLegendSnapshot.Empty,
     /** Leaflet `layer` keys currently shown on the map (web legend checkboxes). */
@@ -46,6 +49,9 @@ data class MapUiData(
 ) {
     val visibleMarkers: List<LeanMapMarker>
         get() = markers.filter { it.layer in visibleLayers }
+
+    val visibleLines: List<LeanMapLine>
+        get() = lines.filter { it.layer in visibleLayers }
 
     val allLegendLayers: Set<String>
         get() = legend.groups
@@ -87,6 +93,10 @@ class MapViewModel(
     private var loadJob: Job? = null
     private var offlineObserveJob: Job? = null
     private val mergeMutex = Mutex()
+
+    /** Point types go through markgen/Room; line types draw as in-memory polylines. */
+    private val markerTypes = enabledTypes.distinct().filterNot { NosMapRepository.isLineType(it) }
+    private val lineTypes = enabledTypes.distinct().filter { NosMapRepository.isLineType(it) }
 
     init {
         // Shell first (tiles + legend stub), then stream markgen types like the web map.
@@ -220,12 +230,11 @@ class MapViewModel(
         loadJob?.cancel()
         loadJob = viewModelScope.launch {
             ensureSuccessShell()
-            val types = enabledTypes.distinct()
             var successCount = 0
             var lastError: Exception? = null
 
             coroutineScope {
-                types.map { type ->
+                val markerJobs = markerTypes.map { type ->
                     async {
                         runCatching { mapRepository.markgen(type) }
                             .onSuccess { list ->
@@ -238,7 +247,22 @@ class MapViewModel(
                                 lastError = e as? Exception ?: Exception(e)
                             }
                     }
-                }.awaitAll()
+                }
+                val lineJobs = lineTypes.map { type ->
+                    async {
+                        runCatching { mapRepository.markgenLines(type) }
+                            .onSuccess { segments ->
+                                mergeMutex.withLock {
+                                    applyLineBatch(type, segments)
+                                    successCount++
+                                }
+                            }
+                            .onFailure { e ->
+                                lastError = e as? Exception ?: Exception(e)
+                            }
+                    }
+                }
+                (markerJobs + lineJobs).awaitAll()
             }
 
             mergeMutex.withLock {
@@ -315,6 +339,17 @@ class MapViewModel(
         _state.value = _state.value.copy(contentState = UiState.Success(next))
     }
 
+    /**
+     * Lines are not persisted to Room (yet) — kept in memory and merged by [type],
+     * independent of the marker offline cache gate, so [buildData] must preserve them.
+     */
+    private fun applyLineBatch(type: String, batch: List<LeanMapLine>) {
+        updateData { prev ->
+            val lines = prev.lines.filterNot { it.type == type } + batch
+            prev.copy(lines = lines)
+        }
+    }
+
     private fun buildData(
         previous: MapUiData,
         markers: List<LeanMapMarker>,
@@ -339,6 +374,7 @@ class MapViewModel(
         }
         return MapUiData(
             markers = markers,
+            lines = previous.lines,
             loadedTypes = loadedTypes,
             legend = legend,
             visibleLayers = visibleLayers,
