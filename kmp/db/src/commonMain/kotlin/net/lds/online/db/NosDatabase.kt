@@ -28,6 +28,8 @@ expect object NosDatabaseConstructor : RoomDatabaseConstructor<NosDatabase> {
 fun buildNosDatabase(builder: RoomDatabase.Builder<NosDatabase>): NosDatabase =
     builder
         .setDriver(BundledSQLiteDriver())
+        // WAL: readers (Flow observeAll) + writers (replaceType) can overlap without SQLITE_BUSY.
+        .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
         .setQueryCoroutineContext(Dispatchers.IO)
         .build()
 

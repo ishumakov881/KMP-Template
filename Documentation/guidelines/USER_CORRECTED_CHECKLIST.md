@@ -107,8 +107,10 @@
   Verify: на Карте «Обновление» выше «Легенда», оба свёрнуты при старте; развернуть → выбрать «10 секунд» — markgen ~каждые 10с; дефолт 5 минут.
   Изм. 2026-11-11: позиция выше легенды; старт свёрнут.
 - [x] U12 — Login: `CupertinoLoginField` / `CupertinoPasswordField` на `BasicTextField` + CupertinoTheme; `ContentType`+`ContentDataType.Text` на BTF; форма в **не-lazy** `CupertinoSection`/`Column` (не `LazyColumn`/`section{}` item — Autofill слепнет). `commit()` после успешного логина. Цель — Android Autofill / Password Manager (сохранить + быстрый ввод). Без Material TextField / `CupertinoTextField`.
-- [x] U12.1 — Поле пароля: встроенная иконка показа/скрытия пароля в `trailingIcon` (`CupertinoIcons.Default.Eye` / `EyeSlash`, tint = `secondaryLabel`), переключает `VisualTransformation` (None ↔ `PasswordVisualTransformation`). Состояние `revealed` внутри `CupertinoPasswordField`. Размер — **как кнопка очистки логина**: голая `CupertinoIcon` c `.size(CupertinoIconDefaults.MediumSize)` + `detectTapGestures` (не `CupertinoIconButton` — у него крупнее touch-таргет/иконка).
-  Verify: на экране входа иконка глаза в поле пароля того же размера, что крестик-очистка в поле логина.
+- [x] U12.1 — Поле пароля: встроенная иконка показа/скрытия пароля в `trailingIcon` (`CupertinoIcons.Default.Eye` / `EyeSlash`, tint = `secondaryLabel`), переключает `VisualTransformation` (None ↔ `PasswordVisualTransformation`). Состояние `revealed` внутри `CupertinoPasswordField`. Размер — **как кнопка очистки логина**: голая `CupertinoIcon` c `.size(CupertinoIconDefaults.MediumSize)` + `detectTapGestures` (не `CupertinoIconButton` — у него крупнее touch-таргет/иконка). Глаз виден **только** когда инпут в фокусе и не пустой — как `TextFieldClearButton` у логина (`focused && value.isNotEmpty()`); при очистке `revealed` сбрасывается.
+  Verify: без фокуса на пароле — глаза нет даже с текстом; фокус + символы — глаз есть; убрать фокус / очистить — глаз пропадает (паритет крестику логина).
+  Изм. 2026-11-13: глаз только при непустом пароле.
+  Изм. 2026-11-13: глаз только при фокусе + непустом (как clear у логина).
 - [ ] U12.2 — Android Autofill работает только когда на устройстве выбрана служба автозаполнения (`settings get secure autofill_service` ≠ null). Если None — не предлагает ни в NOS, ни в примере ldsonline (это настройка устройства, не код). Включение: Настройки → Пароли и автозаполнение → Google/Samsung Pass, либо `adb shell settings put secure autofill_service "com.google.android.gms/.autofill.service.AutofillService"`.
   Verify: фокус логина/пароля → предложение из Password Manager; после успешного «Вход» — диалог сохранить пароль; `LoginScreen` без ScreenList для полей.
   Изм. 2026-11-12: BTF-поля; убрать lazy section; commit после успеха.
@@ -136,6 +138,8 @@
   Изм. 2026-11-10: было только static catalog → static + discovery из markgen.
 - [x] D3 — Узлы `/sw`: нет JSON-списка — `NosSwRepository` тянет HTML `GET /sw`, `GET /sw/{id}`, `GET /sw/pic/{path}`, SNMP `GET /sw/snmp/{ip}` + `ajaxsnmp.php` (тот же CookieJar/сессия); парсит `#s_sw` → `SwSite`, таблицу → `SwDevice`/`SwSitePage`, pic → `SwPicPage`/`SwPicGraph`, snmp → `SwSnmpPage`. Не хардкодить меню/список PNG из HTML-снимка чата.
   Verify: `sites` / `sitePage` / `picPage` / `snmpPage`; `NosEndpoints.swPic`/`swSnmp`/`AJAX_SNMP`; парсеры; `SwDevice.mrtgUrl` → `nolegend.png`; UI только через репозиторий.
+- [x] D4 — Room offline не падает с `SQLException: Error code: 5, database is locked`: (1) `buildNosDatabase` → `JournalMode.WRITE_AHEAD_LOGGING`; (2) Android `createNosDatabase` — process singleton (один файл / одно соединение); (3) `RoomMarkerOfflineStore` — все записи (`replaceType`/`upsert`) через один `Mutex` + `NonCancellable` + retry на SQLITE_BUSY.
+  Verify: Настройки → «Офлайн-кэш карты» вкл → несколько Home/resume и авто-refresh markgen → нет FATAL `database is locked`; в `NosDatabase.kt` есть WAL; в `RoomMarkerOfflineStore` — `writeMutex`.
 
 ## B. Сборка
 

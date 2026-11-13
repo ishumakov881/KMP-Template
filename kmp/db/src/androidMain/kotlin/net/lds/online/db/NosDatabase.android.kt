@@ -13,5 +13,17 @@ fun nosDatabaseBuilder(context: Context): RoomDatabase.Builder<NosDatabase> {
     )
 }
 
-fun createNosDatabase(context: Context): NosDatabase =
-    buildNosDatabase(nosDatabaseBuilder(context))
+/**
+ * Process-wide singleton — a second [Room.databaseBuilder] on the same file
+ * without closing the first opens a second connection → `database is locked`.
+ */
+@Volatile
+private var nosDatabaseInstance: NosDatabase? = null
+
+fun createNosDatabase(context: Context): NosDatabase {
+    nosDatabaseInstance?.let { return it }
+    return synchronized(NosDatabase::class.java) {
+        nosDatabaseInstance?.let { return it }
+        buildNosDatabase(nosDatabaseBuilder(context)).also { nosDatabaseInstance = it }
+    }
+}

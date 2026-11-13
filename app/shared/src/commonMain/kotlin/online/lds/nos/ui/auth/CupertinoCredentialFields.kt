@@ -2,6 +2,7 @@ package online.lds.nos.ui.auth
 
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.defaultMinSize
@@ -92,10 +93,16 @@ fun CupertinoPasswordField(
     trailingIcon: @Composable (() -> Unit)? = null,
 ) {
     var revealed by remember { mutableStateOf(false) }
+    val focused by interactionSource.collectIsFocusedAsState()
     val secondary = CupertinoTheme.colorScheme.secondaryLabel
+    // Same rule as login TextFieldClearButton: only while focused + non-empty.
+    val showEye = focused && value.isNotEmpty()
     CredentialBasicField(
         value = value,
-        onValueChange = onValueChange,
+        onValueChange = { new ->
+            if (new.isEmpty()) revealed = false
+            onValueChange(new)
+        },
         contentType = ContentType.Password,
         modifier = modifier,
         enabled = enabled,
@@ -109,15 +116,16 @@ fun CupertinoPasswordField(
         keyboardActions = keyboardActions,
         interactionSource = interactionSource,
         trailingIcon = trailingIcon ?: {
-            // Match CupertinoSectionDefaults.TextFieldClearButton: bare icon, MediumSize, tap gesture.
-            CupertinoIcon(
-                imageVector = if (revealed) CupertinoIcons.Default.EyeSlash else CupertinoIcons.Default.Eye,
-                contentDescription = if (revealed) "Скрыть пароль" else "Показать пароль",
-                modifier = Modifier
-                    .pointerInput(Unit) { detectTapGestures { revealed = !revealed } }
-                    .size(CupertinoIconDefaults.MediumSize),
-                tint = secondary,
-            )
+            if (showEye) {
+                CupertinoIcon(
+                    imageVector = if (revealed) CupertinoIcons.Default.EyeSlash else CupertinoIcons.Default.Eye,
+                    contentDescription = if (revealed) "Скрыть пароль" else "Показать пароль",
+                    modifier = Modifier
+                        .pointerInput(Unit) { detectTapGestures { revealed = !revealed } }
+                        .size(CupertinoIconDefaults.MediumSize),
+                    tint = secondary,
+                )
+            }
         },
         isPassword = true,
     )
