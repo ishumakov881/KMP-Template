@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -57,14 +58,22 @@ fun LoginScreen(
     // Autofill: не LazyColumn/section item — Password Manager часто не видит форму в lazy.
     val submit = { viewModel.onEvent(LoginEvent.Submit) }
 
-    CupertinoScaffold(topBar = {
-        CupertinoTopAppBar(title = {
-            CupertinoText(
-                text = "NOS",
-                style = CupertinoTheme.typography.largeTitle.copy(fontSize = metrics.titleSp.sp),
+    // Material3 insets: cupertino defaults call WindowInsets.systemBars → NoSuchMethodError on Desktop.
+    val desktopSafeInsets = ScaffoldDefaults.contentWindowInsets
+    CupertinoScaffold(
+        contentWindowInsets = desktopSafeInsets,
+        topBar = {
+            CupertinoTopAppBar(
+                windowInsets = desktopSafeInsets,
+                title = {
+                    CupertinoText(
+                        text = "NOS",
+                        style = CupertinoTheme.typography.largeTitle.copy(fontSize = metrics.titleSp.sp),
+                    )
+                },
             )
-        })
-    }) { scaffoldPadding ->
+        },
+    ) { scaffoldPadding ->
         BaseScreenLayout(
             state = state,
             onRefresh = { viewModel.loadData(isRefreshing = true) },

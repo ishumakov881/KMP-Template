@@ -8,9 +8,11 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
@@ -28,8 +30,6 @@ import androidx.compose.ui.zIndex
 import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
-import io.github.alexzhirkevich.cupertino.CupertinoBottomSheetContent
-import io.github.alexzhirkevich.cupertino.CupertinoBottomSheetScaffold
 import io.github.alexzhirkevich.cupertino.CupertinoButton
 import io.github.alexzhirkevich.cupertino.CupertinoButtonDefaults
 import io.github.alexzhirkevich.cupertino.CupertinoIcon
@@ -37,12 +37,11 @@ import io.github.alexzhirkevich.cupertino.CupertinoIconButton
 import io.github.alexzhirkevich.cupertino.CupertinoNavigateBackButton
 import io.github.alexzhirkevich.cupertino.CupertinoNavigationBar
 import io.github.alexzhirkevich.cupertino.CupertinoNavigationBarItem
+import io.github.alexzhirkevich.cupertino.CupertinoScaffold
 import io.github.alexzhirkevich.cupertino.CupertinoSurface
 import io.github.alexzhirkevich.cupertino.CupertinoText
 import io.github.alexzhirkevich.cupertino.CupertinoTopAppBar
 import io.github.alexzhirkevich.cupertino.ExperimentalCupertinoApi
-import io.github.alexzhirkevich.cupertino.rememberCupertinoBottomSheetScaffoldState
-import io.github.alexzhirkevich.cupertino.rememberCupertinoSheetState
 import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
 import io.github.alexzhirkevich.cupertino.icons.filled.ListBulletCircle
 import io.github.alexzhirkevich.cupertino.icons.filled.ListBulletClipboard
@@ -158,8 +157,9 @@ fun CorporateShell(
     val switchesViewModel = remember(mapRepository) { SwitchesViewModel(mapRepository) }
     val sitesViewModel = remember(swRepository) { SitesViewModel(swRepository) }
     val scope = rememberCoroutineScope()
-    val sheetState = rememberCupertinoSheetState()
-    val scaffoldState = rememberCupertinoBottomSheetScaffoldState(sheetState)
+    // Not CupertinoBottomSheetScaffold: it always evaluates CupertinoTopAppBarDefaults.windowInsets
+    // (systemBars) when measuring the sheet → NoSuchMethodError on Desktop JVM.
+    var actionsSheetVisible by remember { mutableStateOf(false) }
 
     // Deep link / adb: open native SNMP (same data as web /sw/snmp/{ip}).
     LaunchedEffect(pendingSnmpIp) {
@@ -171,17 +171,17 @@ fun CorporateShell(
     val top = stack.lastOrNull()
     val push: (Overlay) -> Unit = { stack = stack + it }
     val pop: () -> Unit = { stack = stack.dropLast(1) }
-    val hideSheet: () -> Unit = { scope.launch { sheetState.hide() } }
+    val hideSheet: () -> Unit = { actionsSheetVisible = false }
 
     // One back chain (ldsonline): sheet → overlay → home tab. On Map+empty → MainActivity double-back exit.
     val consumeSystemBack =
-        sheetState.isVisible || stack.isNotEmpty() || tab != MainTab.Map
+        actionsSheetVisible || stack.isNotEmpty() || tab != MainTab.Map
     NavigationBackHandler(
         state = rememberNavigationEventState(NavigationEventInfo.None),
         isBackEnabled = consumeSystemBack,
         onBackCompleted = {
             when {
-                sheetState.isVisible -> hideSheet()
+                actionsSheetVisible -> hideSheet()
                 stack.isNotEmpty() -> pop()
                 else -> {
                     tab = MainTab.Map
@@ -191,11 +191,13 @@ fun CorporateShell(
         },
     )
 
-    CupertinoBottomSheetScaffold(
-        scaffoldState = scaffoldState,
-        sheetContent = { RequestActionsSheet(onAction = hideSheet) },
+    // Material3 insets: cupertino defaults call WindowInsets.systemBars → Desktop crash.
+    val desktopSafeInsets = ScaffoldDefaults.contentWindowInsets
+    CupertinoScaffold(
+        contentWindowInsets = desktopSafeInsets,
         topBar = {
             CupertinoTopAppBar(
+                windowInsets = desktopSafeInsets,
                 navigationIcon = {
                     if (top != null) {
                         val backTitle = when (val prev = stack.getOrNull(stack.size - 2)) {
@@ -226,7 +228,7 @@ fun CorporateShell(
                 actions = {
                     when (top) {
                         is Overlay.RequestForm -> CupertinoIconButton(
-                            onClick = { scope.launch { sheetState.show() } },
+                            onClick = { actionsSheetVisible = true },
                         ) {
                             CupertinoIcon(CupertinoIcons.Default.EllipsisCircle, contentDescription = "Ещё")
                         }
@@ -271,7 +273,7 @@ fun CorporateShell(
             )
         },
         bottomBar = {
-            CupertinoNavigationBar {
+            CupertinoNavigationBar(windowInsets = desktopSafeInsets) {
                 MainTab.entries.forEach { item ->
                     val selected = item == tab
                     CupertinoNavigationBarItem(
@@ -404,6 +406,19 @@ fun CorporateShell(
                     }
                 }
             }
+
+            if (actionsSheetVisible) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .zIndex(3f),
+                ) {
+                    RequestActionsSheet(
+                        windowInsets = desktopSafeInsets,
+                        onAction = hideSheet,
+                    )
+                }
+            }
         }
     }
 }
@@ -445,44 +460,54 @@ fun ScreenList(
 }
 
 @Composable
-private fun RequestActionsSheet(onAction: () -> Unit) {
-    CupertinoBottomSheetContent(
-        topBar = {
-            CupertinoTopAppBar(
-                title = { CupertinoText("Действия") },
-                actions = {
-                    CupertinoButton(
-                        onClick = onAction,
-                        colors = CupertinoButtonDefaults.plainButtonColors(),
-                    ) {
-                        CupertinoText("Готово")
-                    }
-                },
-            )
-        },
-    ) { sheetPadding ->
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = sheetPadding,
-        ) {
-            section {
-                link(
-                    onClick = onAction,
-                    icon = { CupertinoLinkIcon(CupertinoIcons.Default.DocOnDoc) },
-                ) { CupertinoText("Дублировать") }
-                link(
-                    onClick = onAction,
-                    icon = { CupertinoLinkIcon(CupertinoIcons.Default.SquareAndArrowUp) },
-                ) { CupertinoText("Поделиться") }
-                link(
-                    onClick = onAction,
-                    icon = {
-                        CupertinoLinkIcon(
-                            imageVector = CupertinoIcons.Default.Trash,
-                            containerColor = CupertinoColors.systemRed,
-                        )
+private fun RequestActionsSheet(
+    windowInsets: WindowInsets,
+    onAction: () -> Unit,
+) {
+    CupertinoSurface(
+        modifier = Modifier.fillMaxSize(),
+        color = CupertinoTheme.colorScheme.systemGroupedBackground,
+    ) {
+        CupertinoScaffold(
+            contentWindowInsets = windowInsets,
+            topBar = {
+                CupertinoTopAppBar(
+                    windowInsets = windowInsets,
+                    title = { CupertinoText("Действия") },
+                    actions = {
+                        CupertinoButton(
+                            onClick = onAction,
+                            colors = CupertinoButtonDefaults.plainButtonColors(),
+                        ) {
+                            CupertinoText("Готово")
+                        }
                     },
-                ) { CupertinoText("Отозвать заявку", color = CupertinoColors.systemRed) }
+                )
+            },
+        ) { sheetPadding ->
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = sheetPadding,
+            ) {
+                section {
+                    link(
+                        onClick = onAction,
+                        icon = { CupertinoLinkIcon(CupertinoIcons.Default.DocOnDoc) },
+                    ) { CupertinoText("Дублировать") }
+                    link(
+                        onClick = onAction,
+                        icon = { CupertinoLinkIcon(CupertinoIcons.Default.SquareAndArrowUp) },
+                    ) { CupertinoText("Поделиться") }
+                    link(
+                        onClick = onAction,
+                        icon = {
+                            CupertinoLinkIcon(
+                                imageVector = CupertinoIcons.Default.Trash,
+                                containerColor = CupertinoColors.systemRed,
+                            )
+                        },
+                    ) { CupertinoText("Отозвать заявку", color = CupertinoColors.systemRed) }
+                }
             }
         }
     }

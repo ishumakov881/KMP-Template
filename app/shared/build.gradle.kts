@@ -73,6 +73,9 @@ kotlin {
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
             implementation(libs.compose.ui)
+            // Only for ScaffoldDefaults.contentWindowInsets (cupertino Desktop systemBars crash).
+            // Same as ldsonline: libs.compose.material3 @ 1.9.0 (≠ composeMultiplatform 1.12.0).
+            implementation(libs.compose.material3)
             implementation(libs.navigationevent.compose)
             implementation(libs.compose.components.resources)
             implementation(libs.compose.uiToolingPreview)

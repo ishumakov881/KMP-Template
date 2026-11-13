@@ -148,8 +148,9 @@
 - [x] B2 — Android app id: `namespace` + `applicationId` = `online.lds.nos` (reverse DNS `nos.lds.online`). Исходники `:app:*` перенесены `git mv` `dev/walhalla/lazagne` → `online/lds/nos`, package/import обновлены. `:kmp:*` / `core` / `server` не трогать.
   Verify: `app/androidApp/build.gradle.kts`; пути `app/**/kotlin/online/lds/nos/**`; манифест `.MainActivity`; установка APK `online.lds.nos`.
   Изм. 2026-11-10: убран хардкод Desktop `debug.keystore` / `lds.signing.dir` — только global gradle props.
-- [ ] B3 — Desktop JVM: cupertino `CupertinoBottomSheetScaffold` / defaults `WindowInsets.systemBars` дают `NoSuchMethodError` на CMP 1.12 (баг библиотеки). В `CorporateShell` снова общий `CupertinoBottomSheetScaffold` (как до split). Workaround desktop — отдельно, если понадобится.
-  Verify: `CorporateShell` → `CupertinoBottomSheetScaffold` + `rememberCupertinoSheetState`; нет `NosAppScaffold`; Android ок; desktop после login может падать до фикса cupertino / отдельного desktop shell.
+- [x] B3 — Desktop JVM: cupertino defaults `WindowInsets.systemBars` → `NoSuchMethodError` на CMP 1.12. Обход: `compose-material3 = "1.9.0"` + `ScaffoldDefaults.contentWindowInsets` на всех cupertino bars (`LoginScreen`, `CorporateShell` TopAppBar/NavigationBar/Scaffold). **`CupertinoBottomSheetScaffold` не использовать** — внутри всегда зовёт `CupertinoTopAppBarDefaults.windowInsets` при measure sheet; shell на `CupertinoScaffold` + overlay `RequestActionsSheet`.
+  Verify: `:app:desktopApp:run` — логин → карта/свичи/узлы/настройки без `getSystemBars`; Android ок.
+  Изм. 2026-11-13: ScaffoldDefaults + отказ от BottomSheetScaffold на Desktop/везде.
 - [x] B4 — Имя выходного APK как в ldsonline (`archivesBaseName = applicationId-versionName`). На AGP 9: `android.base.archivesName.set("$applicationId-$versionName")` → `online.lds.nos-1.0-release.apk` (AGP добавляет `-<buildType>`).
   Verify: `app/androidApp/build.gradle.kts` → `base { archivesName.set(...) }`; `assembleRelease` → `outputs/apk/release/online.lds.nos-1.0-release.apk`, не `androidApp-release.apk`.
 
