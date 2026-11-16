@@ -17,6 +17,8 @@ kotlin {
         iosTarget.binaries.framework {
             baseName = "Shared"
             isStatic = true
+            // MapKit: NosMapCanvas.ios; SafariServices: DeviceWebUi SFSafariViewController.
+            linkerOpts("-framework", "MapKit", "-framework", "SafariServices")
         }
     }
     
@@ -57,6 +59,8 @@ kotlin {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.compose.uiTooling)
             implementation(libs.osmdroid.android)
+            // Custom Tabs for marker «Веб» → http://{deviceIp}/
+            implementation(libs.androidx.browser)
             api(project(":kmp:db"))
         }
         jvmMain.dependencies {

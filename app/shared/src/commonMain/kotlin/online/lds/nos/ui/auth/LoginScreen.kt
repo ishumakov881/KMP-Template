@@ -15,6 +15,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ScaffoldDefaults
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -64,7 +66,7 @@ fun LoginScreen(
         contentWindowInsets = desktopSafeInsets,
         topBar = {
             CupertinoTopAppBar(
-                windowInsets = desktopSafeInsets,
+                windowInsets = TopAppBarDefaults.windowInsets,
                 title = {
                     CupertinoText(
                         text = "NOS",

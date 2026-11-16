@@ -6,7 +6,10 @@ import net.lds.online.network.nos.LeanMapLine
 import net.lds.online.network.nos.LeanMapMarker
 
 /**
- * Platform map surface. Android: osmdroid MapView. Other targets: stub.
+ * Platform map surface.
+ * - Android: osmdroid + LDS tiles `maps.lds.online/hot/`
+ * - iOS: MapKit (Apple standard map tiles; no API key)
+ * - Other targets: stub
  */
 @Composable
 expect fun NosMapCanvas(

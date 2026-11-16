@@ -53,6 +53,7 @@ fun MapMarkerPopup(
     modifier: Modifier = Modifier,
 ) {
     val textShare = rememberTextShare()
+    val deviceWebUi = rememberDeviceWebUi()
     val shareText = remember(marker) { marker.formatShareText() }
     var copiedHint by remember(marker) { mutableStateOf(false) }
     CupertinoSurface(
@@ -143,6 +144,17 @@ fun MapMarkerPopup(
                         colors = CupertinoButtonDefaults.tintedButtonColors(),
                         modifier = Modifier.weight(1f),
                     ) { CupertinoText("Узел") }
+                }
+            }
+
+            // Device HTTP UI (not NOS): Custom Tabs / browser → http://{ip}/
+            marker.ip?.let { ip ->
+                if (httpUrlForDeviceIp(ip) != null) {
+                    CupertinoButton(
+                        onClick = { deviceWebUi.openHttp(ip) },
+                        colors = CupertinoButtonDefaults.tintedButtonColors(),
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { CupertinoText("Веб-морда") }
                 }
             }
 

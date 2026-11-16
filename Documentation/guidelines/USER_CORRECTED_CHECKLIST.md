@@ -128,6 +128,12 @@
   Verify: debug-запуск → logcat `D LeakCanary: LeakCanary is running and ready to detect memory leaks.`; в `assembleRelease` зависимости `leakcanary` нет (`dependencies --configuration releaseRuntimeClasspath`).
 - [x] U21 — **Муфты на карте** (шаг 1): легенда «Муфты» оставляет иконку `/images/map/pon.png` как есть; на карте `layer_pon_mft` / `type=mft` **не** создают osmdroid `Marker` и **не** качают иконку — один переиспользуемый `MftCirclesOverlay` рисует кружки в `draw(Canvas)` (паритет веб `L.circleMarker` + `preferCanvas`), с viewport-куллингом. Тап по кружку → тот же `onMarkerClick`.
   Verify: легенда — по-прежнему `pon.png`; на карте при включённых Муфтах — чёрные полупрозрачные точки, не pin/`pon.png`; в overlays один `MftCirclesOverlay`, не ~14k `Marker`; `dumpsys gfxinfo` с Муфтами вкл ≈ низкий jank (не ~98% как раньше с Marker).
+- [ ] U22 — iOS карта на **обычном MapKit** без затрагивания Android: `NosMapCanvas` ios actual = `UIKitView` + `MKMapView` (стандартные тайлы Apple, **без API key**, без LDS `maps.lds.online/hot/`). Маркеры — `NosMarkerAnnotation` / `MKMarkerAnnotationView`; муфты `type=mft`/`layer_pon_mft` — `MftCircleAnnotationView` (кружок, не pin); связи — `MKPolyline`; тап → `onMarkerClick`. Файлы `androidMain` osmdroid/`MftCirclesOverlay` не менять.
+  Verify: `app/shared/src/iosMain/.../NosMapCanvas.ios.kt` (+ Delegate/Annotation); `git diff` по `androidMain/**/map` пустой; на Mac/симуляторе — карта Apple, маркеры/линии/муфты, тап открывает тот же попап.
+- [x] U23 — Попап маркера: кнопка **«Веб-морда»** при наличии IPv4 → открывает **HTTP UI самого устройства** `http://{ip}/` (не NOS `/sw/snmp/` и не WebView в приложении). Android: Custom Tabs; **iOS: SFSafariViewController** (+ `NSAllowsLocalNetworking`, link `SafariServices`); **Desktop: Desktop.browse** с fallback `rundll32`/`open`/`xdg-open`. SNMP остаётся нативным (U7).
+  Verify: маркер с IP → «Веб-морда» → Custom Tab / Safari sheet / системный браузер на `http://10.x.x.x/`; SNMP → `SnmpScreen`; `DeviceWebUi.*.kt` + кнопка в `MapMarkerPopup`.
+  Изм. 2026-11-16: `androidx.browser:1.8.0`; `rememberDeviceWebUi()`; compileAndroidMain OK.
+  Изм. 2026-11-16: iOS SFSafariViewController + Desktop OS fallback.
 
 ## D. Данные
 

@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.material3.ScaffoldDefaults
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
@@ -197,7 +198,7 @@ fun CorporateShell(
         contentWindowInsets = desktopSafeInsets,
         topBar = {
             CupertinoTopAppBar(
-                windowInsets = desktopSafeInsets,
+                windowInsets = TopAppBarDefaults.windowInsets,
                 navigationIcon = {
                     if (top != null) {
                         val backTitle = when (val prev = stack.getOrNull(stack.size - 2)) {
