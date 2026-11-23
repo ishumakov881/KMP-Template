@@ -134,6 +134,13 @@
   Verify: маркер с IP → «Веб-морда» → Custom Tab / Safari sheet / системный браузер на `http://10.x.x.x/`; SNMP → `SnmpScreen`; `DeviceWebUi.*.kt` + кнопка в `MapMarkerPopup`.
   Изм. 2026-11-16: `androidx.browser:1.8.0`; `rememberDeviceWebUi()`; compileAndroidMain OK.
   Изм. 2026-11-16: iOS SFSafariViewController + Desktop OS fallback.
+- [ ] U25 — **Временная отладка карты:** красный квадрат в центре карты мигает каждые **600 ms** (`DebugBlinkOverlay` + `LaunchedEffect` в `NosMapCanvas.android.kt`). Не продуктовая фича — **убрать перед релизом/публикацией**.
+  Verify: Карта → в центре красный квадрат появляется/пропадает ~2 раза в секунду; rebuild Marker/Polyline его не сносит.
+- [ ] U26 — Старт карты без «пустого» дёрганья скролла (~3 с): progressive markgen обновляет легенду/counts, но **не** должен пересобирать osmdroid overlays, если `visibleMarkers`/`visibleLines` не менялись (легенда всё выкл — тоже). Фикс: `remember` для `onMarkerClick` в `MapShellContent` (иначе Compose не скипает canvas) + early-return в `NosMapCanvas.android.kt` `AndroidView.update`.
+  Verify: все слои легенды выкл → холодный вход → первые секунды скролл гладкий, красный DEBUG-мигалка продолжает мигать; после конца markgen без рывка.
+- [x] U27 — **DEBUG perf:** логи tag **`NosMapPerf`**. Команда: `adb logcat -s NosMapPerf:I`. Убрать вместе с U25.
+  Verify: Карта → `progressive START`…`DONE`. До: `offline replaceType mft ~2.6s` на Main. После `Dispatchers.Default` (fg cold 2026-11-23): mft replace **1.94s на worker** (tid≠Main), progressive DONE **~5.2s**, scroll gfxinfo janky **~6%** (50p 13ms / 90p 18ms). Остаток Main: `legend.snapshotFor` ~20–80ms, canvas REBUILD sw~3k ~209ms.
+
 
 ## D. Данные
 

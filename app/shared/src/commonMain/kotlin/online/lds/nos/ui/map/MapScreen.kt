@@ -23,6 +23,7 @@ import io.github.alexzhirkevich.cupertino.CupertinoText
 import io.github.alexzhirkevich.cupertino.ExperimentalCupertinoApi
 import io.github.alexzhirkevich.cupertino.default
 import net.lds.online.components.ErrorView
+import net.lds.online.network.nos.LeanMapMarker
 import net.lds.online.network.nos.NosMapRepository
 import net.lds.online.ui.base.UiState
 import online.lds.nos.data.AppPreferences
@@ -136,14 +137,18 @@ private fun MapShellContent(
     onOpenSite: (siteId: Int, siteName: String) -> Unit,
     onOpenSnmp: (ip: String) -> Unit,
 ) {
+    // Stable callback — иначе каждый markgen-батч (легенда/counts) создаёт новый lambda
+    // и Compose не скипает NosMapCanvas → AndroidView.update сносит/пересобирает overlays
+    // даже при пустой легенде (~3с дёрганый скролл).
+    val onMarkerClick = remember(viewModel) {
+        { marker: LeanMapMarker -> viewModel.onEvent(MapEvent.SelectMarker(marker)) }
+    }
     Box(Modifier.fillMaxSize()) {
         NosMapCanvas(
             markers = data.visibleMarkers,
             lines = data.visibleLines,
             modifier = Modifier.fillMaxSize(),
-            onMarkerClick = { marker ->
-                viewModel.onEvent(MapEvent.SelectMarker(marker))
-            },
+            onMarkerClick = onMarkerClick,
         )
         Column(
             modifier = Modifier

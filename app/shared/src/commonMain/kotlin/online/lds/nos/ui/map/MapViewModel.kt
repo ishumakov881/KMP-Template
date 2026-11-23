@@ -1,6 +1,7 @@
 package online.lds.nos.ui.map
 
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -10,6 +11,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlin.time.TimeSource
 import net.lds.online.network.ApiException
 import net.lds.online.network.nos.LeanMapLine
 import net.lds.online.network.nos.LeanMapMarker
@@ -229,35 +231,40 @@ class MapViewModel(
     private fun loadMarkersProgressive(@Suppress("UNUSED_PARAMETER") isRefreshing: Boolean) {
         loadJob?.cancel()
         loadJob = viewModelScope.launch {
+            val loadMark = TimeSource.Monotonic.markNow()
+            nosMapPerf("progressive START types=${markerTypes.size}+${lineTypes.size}")
             ensureSuccessShell()
             var successCount = 0
             var lastError: Exception? = null
 
             coroutineScope {
                 val markerJobs = markerTypes.map { type ->
-                    async {
+                    async(Dispatchers.Default) {
+                        val netMark = TimeSource.Monotonic.markNow()
                         runCatching { mapRepository.markgen(type) }
                             .onSuccess { list ->
-                                mergeMutex.withLock {
-                                    applyTypeBatch(type, list)
-                                    successCount++
-                                }
+                                nosMapPerf("markgen NET type=$type n=${list.size} ${netMark.elapsedNow()}")
+                                // Room/IO outside mergeMutex so UI mutex is not held for seconds.
+                                applyTypeBatch(type, list)
+                                mergeMutex.withLock { successCount++ }
                             }
                             .onFailure { e ->
+                                nosMapPerf("markgen FAIL type=$type ${netMark.elapsedNow()} ${e.message}")
                                 lastError = e as? Exception ?: Exception(e)
                             }
                     }
                 }
                 val lineJobs = lineTypes.map { type ->
-                    async {
+                    async(Dispatchers.Default) {
+                        val netMark = TimeSource.Monotonic.markNow()
                         runCatching { mapRepository.markgenLines(type) }
                             .onSuccess { segments ->
-                                mergeMutex.withLock {
-                                    applyLineBatch(type, segments)
-                                    successCount++
-                                }
+                                nosMapPerf("lines NET type=$type n=${segments.size} ${netMark.elapsedNow()}")
+                                applyLineBatch(type, segments)
+                                mergeMutex.withLock { successCount++ }
                             }
                             .onFailure { e ->
+                                nosMapPerf("lines FAIL type=$type ${netMark.elapsedNow()} ${e.message}")
                                 lastError = e as? Exception ?: Exception(e)
                             }
                     }
@@ -278,6 +285,7 @@ class MapViewModel(
                     updateData { it.copy(markersLoading = false) }
                 }
             }
+            nosMapPerf("progressive DONE ok=$successCount total=${loadMark.elapsedNow()}")
         }
     }
 
@@ -323,30 +331,40 @@ class MapViewModel(
 
     private suspend fun applyTypeBatch(type: String, batch: List<LeanMapMarker>) {
         if (isOfflineEnabled()) {
-            offlineStore?.replaceType(type, batch)
+            nosMapPerfTimed("offline replaceType type=$type n=${batch.size}") {
+                offlineStore?.replaceType(type, batch)
+            }
             // UI comes from Room Flow when offline cache is on.
             return
         }
-        val previous = currentDataOrNull() ?: emptyShell()
-        val markers = previous.markers.filter { it.type != type } + batch
-        val loaded = previous.loadedTypes + type
-        val next = buildData(
-            previous = previous,
-            markers = markers,
-            loadedTypes = loaded,
-            markersLoading = true,
-        )
-        _state.value = _state.value.copy(contentState = UiState.Success(next))
+        mergeMutex.withLock {
+            nosMapPerfTimed("applyTypeBatch UI type=$type n=${batch.size}") {
+                val previous = currentDataOrNull() ?: emptyShell()
+                val markers = previous.markers.filter { it.type != type } + batch
+                val loaded = previous.loadedTypes + type
+                val next = buildData(
+                    previous = previous,
+                    markers = markers,
+                    loadedTypes = loaded,
+                    markersLoading = true,
+                )
+                _state.value = _state.value.copy(contentState = UiState.Success(next))
+            }
+        }
     }
 
     /**
      * Lines are not persisted to Room (yet) — kept in memory and merged by [type],
      * independent of the marker offline cache gate, so [buildData] must preserve them.
      */
-    private fun applyLineBatch(type: String, batch: List<LeanMapLine>) {
-        updateData { prev ->
-            val lines = prev.lines.filterNot { it.type == type } + batch
-            prev.copy(lines = lines)
+    private suspend fun applyLineBatch(type: String, batch: List<LeanMapLine>) {
+        mergeMutex.withLock {
+            nosMapPerfTimed("applyLineBatch UI type=$type n=${batch.size}") {
+                updateData { prev ->
+                    val lines = prev.lines.filterNot { it.type == type } + batch
+                    prev.copy(lines = lines)
+                }
+            }
         }
     }
 
@@ -357,10 +375,12 @@ class MapViewModel(
         markersLoading: Boolean,
     ): MapUiData {
         // Legend stub uses full enabled set so groups appear before their markgen returns.
-        val legend = NosMapLegendCatalog.snapshotFor(
-            loadedTypes = enabledTypes.toSet(),
-            markers = markers,
-        )
+        val legend = nosMapPerfTimed("legend.snapshotFor markers=${markers.size}") {
+            NosMapLegendCatalog.snapshotFor(
+                loadedTypes = enabledTypes.toSet(),
+                markers = markers,
+            )
+        }
         val allLayers = legend.groups
             .flatMap { group -> group.items.mapNotNull { it.item.leafletLayer } }
             .toSet()

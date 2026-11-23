@@ -1,6 +1,7 @@
 package net.lds.online.db
 
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -29,22 +30,27 @@ class RoomMarkerOfflineStore(
         dao.observeAll().map { rows -> rows.map { it.toLean() } }
 
     override suspend fun replaceType(type: String, markers: List<LeanMapMarker>) {
-        val rows = markers.map { it.toEntity() }
-        writeMutex.withLock {
-            withContext(NonCancellable) {
-                withSqliteBusyRetry {
-                    dao.replaceType(type, rows)
+        // Map + SQLite off Main — progressive mft (~14k) was ~2.6s on UI thread.
+        withContext(Dispatchers.Default) {
+            val rows = markers.map { it.toEntity() }
+            writeMutex.withLock {
+                withContext(NonCancellable) {
+                    withSqliteBusyRetry {
+                        dao.replaceType(type, rows)
+                    }
                 }
             }
         }
     }
 
     override suspend fun upsert(marker: LeanMapMarker) {
-        val row = marker.toEntity()
-        writeMutex.withLock {
-            withContext(NonCancellable) {
-                withSqliteBusyRetry {
-                    dao.upsert(row)
+        withContext(Dispatchers.Default) {
+            val row = marker.toEntity()
+            writeMutex.withLock {
+                withContext(NonCancellable) {
+                    withSqliteBusyRetry {
+                        dao.upsert(row)
+                    }
                 }
             }
         }

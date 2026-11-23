@@ -33,15 +33,20 @@ internal class MarkerIconCache(private val context: Context) {
 
     suspend fun ensureLoaded(urls: Collection<String>) {
         val missing = urls.filter { it.isNotBlank() && it !in bitmaps }.distinct()
-        if (missing.isEmpty()) return
-        coroutineScope {
-            missing.map { url ->
-                async(Dispatchers.IO) {
-                    val bmp = loadFromDisk(url) ?: downloadBitmap(url)?.also { saveToDisk(url, it) }
-                    url to bmp
+        if (missing.isEmpty()) {
+            nosMapPerf("icons ensureLoaded skip cached=${urls.size}")
+            return
+        }
+        nosMapPerfTimed("icons ensureLoaded missing=${missing.size} asked=${urls.size}") {
+            coroutineScope {
+                missing.map { url ->
+                    async(Dispatchers.IO) {
+                        val bmp = loadFromDisk(url) ?: downloadBitmap(url)?.also { saveToDisk(url, it) }
+                        url to bmp
+                    }
+                }.awaitAll().forEach { (url, bmp) ->
+                    if (bmp != null) mutex.withLock { bitmaps[url] = bmp }
                 }
-            }.awaitAll().forEach { (url, bmp) ->
-                if (bmp != null) mutex.withLock { bitmaps[url] = bmp }
             }
         }
     }
