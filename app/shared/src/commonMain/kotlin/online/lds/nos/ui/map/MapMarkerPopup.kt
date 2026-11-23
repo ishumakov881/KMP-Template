@@ -148,15 +148,15 @@ fun MapMarkerPopup(
             }
 
             // Device HTTP UI (not NOS): Custom Tabs / browser → http://{ip}/
-            marker.ip?.let { ip ->
-                if (httpUrlForDeviceIp(ip) != null) {
-                    CupertinoButton(
-                        onClick = { deviceWebUi.openHttp(ip) },
-                        colors = CupertinoButtonDefaults.tintedButtonColors(),
-                        modifier = Modifier.fillMaxWidth(),
-                    ) { CupertinoText("Веб-морда") }
-                }
-            }
+//            marker.ip?.let { ip ->
+//                if (httpUrlForDeviceIp(ip) != null) {
+//                    CupertinoButton(
+//                        onClick = { deviceWebUi.openHttp(ip) },
+//                        colors = CupertinoButtonDefaults.tintedButtonColors(),
+//                        modifier = Modifier.fillMaxWidth(),
+//                    ) { CupertinoText("Веб-морда") }
+//                }
+//            }
 
             if (marker.maintenanceId != null) {
                 CupertinoButton(
