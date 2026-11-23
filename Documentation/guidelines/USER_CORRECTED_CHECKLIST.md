@@ -136,8 +136,9 @@
   Verify: маркер с IP → «Веб-морда» → Custom Tab / Safari sheet / системный браузер на `http://10.x.x.x/`; SNMP → `SnmpScreen`; `DeviceWebUi.*.kt` + кнопка в `MapMarkerPopup`.
   Изм. 2026-11-16: `androidx.browser:1.8.0`; `rememberDeviceWebUi()`; compileAndroidMain OK.
   Изм. 2026-11-16: iOS SFSafariViewController + Desktop OS fallback.
-- [ ] U25 — **Временная отладка карты:** красный квадрат в центре карты мигает каждые **600 ms** (`DebugBlinkOverlay` + `LaunchedEffect` в `NosMapCanvas.android.kt`). Не продуктовая фича — **убрать перед релизом/публикацией**.
-  Verify: Карта → в центре красный квадрат появляется/пропадает ~2 раза в секунду; APPLY features overlay его не сносит.
+- [x] U25 — DEBUG мигалка карты **выключена** (код `DebugBlinkOverlay` / `LaunchedEffect` / add overlay **закомментирован** в `NosMapCanvas.android.kt`, не удалён). На карте нет красного квадрата.
+  Verify: Карта → нет мигающего красного квадрата в центре; в файле блоки с пометкой `DEBUG U25` в комментариях.
+  Изм. 2026-11-23: было активно 600 ms → закомментировано по просьбе.
 - [ ] U26 — Старт карты без «пустого» дёрганья скролла (~3 с): progressive markgen обновляет легенду/counts, но **не** должен пересобирать osmdroid overlays, если `visibleMarkers`/`visibleLines` не менялись (легенда всё выкл — тоже). Фикс: `remember` для `onMarkerClick` в `MapShellContent` (иначе Compose не скипает canvas) + early-return в `NosMapCanvas.android.kt` `AndroidView.update`.
   Verify: все слои легенды выкл → холодный вход → первые секунды скролл гладкий, красный DEBUG-мигалка продолжает мигать; после конца markgen без рывка.
 - [x] U27 — **DEBUG perf:** логи tag **`NosMapPerf`**. Команда: `adb logcat -s NosMapPerf:I`. Убрать вместе с U25.
@@ -148,6 +149,7 @@
   Verify: файл ресерча есть; в нём таблица «карта/поток/фон/веб» и приоритеты A–E; код пока можно не менять до явного «делай A/B».
   Изм. 2026-11-23: принятый порядок работ — **сначала B (IconMarkersOverlay + LinkLinesOverlay)**, потом A (инкремент по layer); не чанковый drip Marker; не трогать `@Preview`/комменты; U25/U27 убрать перед релизом.
   Изм. 2026-11-23: B = **один** `NosMapFeaturesOverlay` (lines+mft+icons+hit), не три overlay.
+  Изм. 2026-11-23: после замера U28 (APPLY ~88µs, scroll ~0.26% jank) — **карта-perf считать достаточным** для продукта; опционально позже: zoom-LOD/иконки, инкремент A, bbox API. Перед релизом обязательно снять U25/U27.
 - [x] U30 — Клики: единый hit в `NosMapFeaturesOverlay` — ближайшая точка среди icons+mft в hitSlop; tie → icon (рисуется выше); miss → false (pan); линии не участвуют в hit. Не `true` на любой тап по карте.
   Verify: код `NosMapFeaturesOverlay.onSingleTapConfirmed`; на устройстве тап по иконке/муфте → попап, пустое место → pan (ручная проверка пользователем желательна).
 

@@ -1,10 +1,6 @@
 package online.lds.nos.ui.map
 
 import android.content.Context
-import android.graphics.Canvas
-import android.graphics.Color
-import android.graphics.Paint
-import android.graphics.Point
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -17,8 +13,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
 import net.lds.online.network.nos.LeanMapLine
 import net.lds.online.network.nos.LeanMapMarker
 import net.lds.online.network.nos.resolvedIconUrl
@@ -26,11 +20,10 @@ import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.tilesource.XYTileSource
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
-import org.osmdroid.views.overlay.Overlay
 import java.io.File
 
-/** DEBUG: blink period for red square marker (remove before release). */
-private const val DebugBlinkMs = 600L
+// DEBUG U25: blink period (uncomment with DebugBlinkOverlay).
+// private const val DebugBlinkMs = 600L
 
 private val LdsHotTiles = XYTileSource(
     "LDS_HOT",
@@ -70,8 +63,8 @@ actual fun NosMapCanvas(
             overlay.onItemClick = { lean -> onMarkerClickState.value(lean) }
         }
     }
-    // DEBUG: independent Overlay so feature apply does not wipe the blink.
-    val debugBlinkOverlay = remember { DebugBlinkOverlay() }
+    // DEBUG U25: red blink overlay (commented out for product).
+    // val debugBlinkOverlay = remember { DebugBlinkOverlay() }
     val applied = remember { MapOverlayApplyState() }
 
     val mapView = remember {
@@ -84,18 +77,18 @@ actual fun NosMapCanvas(
             controller.setZoom(11.0)
             controller.setCenter(GeoPoint(48.4422, 39.3544))
             overlays.add(featuresOverlay)
-            overlays.add(debugBlinkOverlay)
+            // overlays.add(debugBlinkOverlay)
         }
     }
 
-    // DEBUG: add/remove red square every 600ms (map center).
-    LaunchedEffect(mapView) {
-        while (isActive) {
-            delay(DebugBlinkMs)
-            debugBlinkOverlay.visible = !debugBlinkOverlay.visible
-            mapView.invalidate()
-        }
-    }
+    // DEBUG U25: toggle red square every 600ms at map center.
+    // LaunchedEffect(mapView) {
+    //     while (isActive) {
+    //         delay(DebugBlinkMs)
+    //         debugBlinkOverlay.visible = !debugBlinkOverlay.visible
+    //         mapView.invalidate()
+    //     }
+    // }
 
     LaunchedEffect(markers) {
         val mft = markers.filter { NosMapFeaturesOverlay.isMftCircleMarker(it) }
@@ -153,9 +146,9 @@ actual fun NosMapCanvas(
                 if (featuresOverlay !in view.overlays) {
                     view.overlays.add(0, featuresOverlay)
                 }
-                if (debugBlinkOverlay !in view.overlays) {
-                    view.overlays.add(debugBlinkOverlay)
-                }
+                // if (debugBlinkOverlay !in view.overlays) {
+                //     view.overlays.add(debugBlinkOverlay)
+                // }
                 view.invalidate()
             }
         },
@@ -170,19 +163,20 @@ private class MapOverlayApplyState {
     var skipCount: Int = 0
 }
 
-/** DEBUG only: flashing red square at map center (not a real NOS marker). */
-private class DebugBlinkOverlay : Overlay() {
+/*
+/** DEBUG U25 only: flashing red square at map center (not a real NOS marker). */
+private class DebugBlinkOverlay : org.osmdroid.views.overlay.Overlay() {
     @Volatile
     var visible: Boolean = false
 
     private val geo = GeoPoint(48.4422, 39.3544)
-    private val scratch = Point()
-    private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.FILL
-        color = Color.RED
+    private val scratch = android.graphics.Point()
+    private val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+        style = android.graphics.Paint.Style.FILL
+        color = android.graphics.Color.RED
     }
 
-    override fun draw(canvas: Canvas, mapView: MapView, shadow: Boolean) {
+    override fun draw(canvas: android.graphics.Canvas, mapView: MapView, shadow: Boolean) {
         if (shadow || !visible) return
         val half = 18f * mapView.context.resources.displayMetrics.density
         mapView.projection.toPixels(geo, scratch)
@@ -195,3 +189,4 @@ private class DebugBlinkOverlay : Overlay() {
         )
     }
 }
+*/
