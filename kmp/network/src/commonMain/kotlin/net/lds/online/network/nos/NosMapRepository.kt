@@ -9,6 +9,7 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
@@ -117,8 +118,11 @@ class NosMapRepository(
             )
         return array.mapNotNull { node ->
             val obj = node as? JsonObject ?: return@mapNotNull null
-            val lat = obj.coord("lat") ?: return@mapNotNull null
-            val lng = obj.coord("lng") ?: return@mapNotNull null
+            // Blank/null → 0,0 like Leaflet (Null Island). Old: skip marker without coords.
+            // val lat = obj.coordOrNull("lat") ?: return@mapNotNull null
+            // val lng = obj.coordOrNull("lng") ?: return@mapNotNull null
+            val lat = obj.coord("lat")
+            val lng = obj.coord("lng")
             val popup = parsePopupFields(obj.string("popupContent"))
             val jsonIp = obj.string("ip")
             LeanMapMarker(
@@ -160,10 +164,15 @@ class NosMapRepository(
         val layer = lineLayerForType(type)
         return array.mapNotNull { node ->
             val obj = node as? JsonObject ?: return@mapNotNull null
-            val lat1 = obj.coord("lat1") ?: return@mapNotNull null
-            val lng1 = obj.coord("lng1") ?: return@mapNotNull null
-            val lat2 = obj.coord("lat2") ?: return@mapNotNull null
-            val lng2 = obj.coord("lng2") ?: return@mapNotNull null
+            // Old: drop segment if any endpoint missing.
+            // val lat1 = obj.coordOrNull("lat1") ?: return@mapNotNull null
+            // val lng1 = obj.coordOrNull("lng1") ?: return@mapNotNull null
+            // val lat2 = obj.coordOrNull("lat2") ?: return@mapNotNull null
+            // val lng2 = obj.coordOrNull("lng2") ?: return@mapNotNull null
+            val lat1 = obj.coord("lat1")
+            val lng1 = obj.coord("lng1")
+            val lat2 = obj.coord("lat2")
+            val lng2 = obj.coord("lng2")
             // Web sends a few zero-length segments (p1 == p2) — nothing to draw.
             if (lat1 == lat2 && lng1 == lng2) return@mapNotNull null
             LeanMapLine(
@@ -202,9 +211,23 @@ class NosMapRepository(
         return p.intOrNull ?: p.contentOrNull?.toIntOrNull()
     }
 
-    private fun JsonObject.coord(key: String): Double? {
-        val p = this[key] as? JsonPrimitive ?: return null
-        return p.doubleOrNull ?: p.contentOrNull?.toDoubleOrNull()
+    // Old: missing/blank/null → skip (caller used `?: return@mapNotNull null`).
+    // private fun JsonObject.coordOrNull(key: String): Double? {
+    //     val p = this[key] as? JsonPrimitive ?: return null
+    //     return p.doubleOrNull ?: p.contentOrNull?.toDoubleOrNull()
+    // }
+
+    /**
+     * Leaflet parity: missing / JSON null / blank string → **0.0** (Null Island).
+     * Explicit `0` stays `0`. Non-numeric junk → `0.0` (same as JS `+` coercion for "").
+     */
+    private fun JsonObject.coord(key: String): Double {
+        val el = this[key] ?: return 0.0
+        if (el is JsonNull) return 0.0
+        val p = el as? JsonPrimitive ?: return 0.0
+        val raw = p.contentOrNull
+        if (raw.isNullOrBlank()) return 0.0
+        return p.doubleOrNull ?: raw.toDoubleOrNull() ?: 0.0
     }
 
     private fun isLoginHtml(body: String): Boolean =

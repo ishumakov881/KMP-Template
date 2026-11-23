@@ -158,6 +158,9 @@
 
 - [ ] D1 — Маркер — одна сущность со сменным статусом/слоем (`layer`/`state`/`icon`, напр. wifi ok↔dn); UI-группы — фильтр по полям, не отдельные копии объекта. Офлайн Room: PK стабильный (`type`+`entityId`/`ip`/`lat,lng,name`); sync markgen = **replace по `type`** в одной `@Transaction` (`DELETE WHERE type=?` + `INSERT` batch), не wipe всей таблицы и не поштучный replace всего листа; точечный upsert одного маркера (maintenance/ping) не ломает остальной type. Список узлов `SwSite` — replace всего меню; детали узла — по `siteId`. API delta — позже.
   Verify: `MarkerEntity` + `replaceType(type, rows)`; Map progressive пишет type-batch в DAO → Flow обновляет UI; смена одного maintenance не чистит другие type; фильтр UI по `layer`, не дубли групп.
+- [x] D6 — Координаты markgen как веб Leaflet: пустые/`null`/отсутствующие `lat`/`lng` (и `lat1`… для линий) → **0.0** (Null Island), не отбрасывать маркер. Явный `0` тоже рисуем. Парсер `NosMapRepository.coord`; старый `coordOrNull`+skip **закомментирован**, не удалён.
+  Verify: `Test-SW` / `ZZ` на карте в (0,0); линии с нулём видны. Замер markgen 2026-11-23: **точки** empty/null **4**/19092 (mft:1 ZZ; ktv_amp:3), явных point `0,0` **0**; **линии** zero-endpoint **3**/3270 (`line`), empty **0**.
+  Изм. 2026-11-23: раньше blank → skip маркера.
 - [x] D2 — Легенда карты — статический OOP-каталог (`MapLegendItem` / `MapLegendGroup` / `NosMapLegendCatalog`, паритет веб) **плюс** авто-дополнение: неизвестные `layer` из markgen → `discoverUnknownLayers` (title/icon с маркера), в свою группу по `type` или в «Другие»; `snapshotFor` даёт counts. Не парсить `/osm`.
   Verify: `NosMapLegendCatalog.snapshotFor` / `discoverUnknownLayers`; известные слои из каталога; новый `layer_*` в ответе появляется в легенде без правки каталога; `MapViewModel` кладёт `legend` в `MapUiData`.
   Изм. 2026-11-10: было только static catalog → static + discovery из markgen.
