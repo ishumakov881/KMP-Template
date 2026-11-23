@@ -23,6 +23,8 @@ import java.security.MessageDigest
  */
 internal class MarkerIconCache(private val context: Context) {
     private val bitmaps = mutableMapOf<String, Bitmap>()
+    /** Display-scaled bitmaps for [NosMapFeaturesOverlay] draw (avoid scale-per-frame). */
+    private val displayBitmaps = mutableMapOf<String, Bitmap>()
     private val mutex = Mutex()
     private val diskDir = File(context.cacheDir, "map_icons").also { it.mkdirs() }
 
@@ -52,7 +54,14 @@ internal class MarkerIconCache(private val context: Context) {
     }
 
     fun drawableFor(url: String?): Drawable? {
+        val scaled = bitmapFor(url) ?: return null
+        return BitmapDrawable(context.resources, scaled)
+    }
+
+    /** Scaled bitmap for canvas overlay draw; null if URL missing or not loaded yet. */
+    fun bitmapFor(url: String?): Bitmap? {
         if (url.isNullOrBlank()) return null
+        displayBitmaps[url]?.let { return it }
         val bmp = bitmaps[url] ?: return null
         val w = (bmp.width * DISPLAY_SCALE).toInt().coerceAtLeast(1)
         val h = (bmp.height * DISPLAY_SCALE).toInt().coerceAtLeast(1)
@@ -61,7 +70,8 @@ internal class MarkerIconCache(private val context: Context) {
         } else {
             Bitmap.createScaledBitmap(bmp, w, h, true)
         }
-        return BitmapDrawable(context.resources, scaled)
+        displayBitmaps[url] = scaled
+        return scaled
     }
 
     private fun diskFile(url: String): File {

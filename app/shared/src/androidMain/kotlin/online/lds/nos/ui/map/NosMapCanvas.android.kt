@@ -26,17 +26,11 @@ import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.tilesource.XYTileSource
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
-import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.Overlay
-import org.osmdroid.views.overlay.Polyline
 import java.io.File
 
 /** DEBUG: blink period for red square marker (remove before release). */
 private const val DebugBlinkMs = 600L
-
-/** Connection polyline style (web sends no color for `line`/`mft_line`). */
-private const val LinkLineColor: Int = 0xCC2F6FEB.toInt()
-private const val LinkLineStrokeWidth: Float = 3f
 
 private val LdsHotTiles = XYTileSource(
     "LDS_HOT",
@@ -67,19 +61,17 @@ actual fun NosMapCanvas(
     val context = LocalContext.current
     val iconCache = remember { MarkerIconCache(context.applicationContext) }
     var iconsVersion by remember { mutableIntStateOf(0) }
-    // Icon markers only (sw/wifi/…) — muffs go to [MftCirclesOverlay], no icon fetch.
     var displayMarkers by remember { mutableStateOf<List<LeanMapMarker>>(emptyList()) }
     var displayMft by remember { mutableStateOf<List<LeanMapMarker>>(emptyList()) }
     val onMarkerClickState = rememberUpdatedState(onMarkerClick)
-    // One overlay for all muffs (web preferCanvas + circleMarker) — never N× Marker.
-    val mftOverlay = remember {
-        MftCirclesOverlay().also { overlay ->
+    // One canvas overlay: lines + mft + icons + hit (no N× Marker/Polyline).
+    val featuresOverlay = remember {
+        NosMapFeaturesOverlay(iconCache).also { overlay ->
             overlay.onItemClick = { lean -> onMarkerClickState.value(lean) }
         }
     }
-    // DEBUG: independent Overlay so AndroidView Marker rebuild does not wipe the blink.
+    // DEBUG: independent Overlay so feature apply does not wipe the blink.
     val debugBlinkOverlay = remember { DebugBlinkOverlay() }
-    // Skip wipe/rebuild when progressive markgen only refreshes legend (visible set unchanged).
     val applied = remember { MapOverlayApplyState() }
 
     val mapView = remember {
@@ -91,7 +83,7 @@ actual fun NosMapCanvas(
             setBuiltInZoomControls(true)
             controller.setZoom(11.0)
             controller.setCenter(GeoPoint(48.4422, 39.3544))
-            overlays.add(mftOverlay)
+            overlays.add(featuresOverlay)
             overlays.add(debugBlinkOverlay)
         }
     }
@@ -106,8 +98,8 @@ actual fun NosMapCanvas(
     }
 
     LaunchedEffect(markers) {
-        val mft = markers.filter { MftCirclesOverlay.isMftCircleMarker(it) }
-        val icons = markers.filterNot { MftCirclesOverlay.isMftCircleMarker(it) }
+        val mft = markers.filter { NosMapFeaturesOverlay.isMftCircleMarker(it) }
+        val icons = markers.filterNot { NosMapFeaturesOverlay.isMftCircleMarker(it) }
         displayMft = mft
         if (icons.isEmpty()) {
             displayMarkers = emptyList()
@@ -146,72 +138,23 @@ actual fun NosMapCanvas(
                 return@AndroidView
             }
 
+            // Cheap apply: pointer swap + invalidate (gestures stay responsive — U28).
             nosMapPerfTimed(
-                "canvas update REBUILD markers=${displayMarkers.size} mft=${displayMft.size} lines=${lines.size}",
+                "canvas update APPLY icons=${displayMarkers.size} mft=${displayMft.size} lines=${lines.size}",
             ) {
-                val existingMarkers = view.overlays.filterIsInstance<Marker>()
-                val existingLines = view.overlays.filterIsInstance<Polyline>()
-                view.overlays.removeAll((existingMarkers + existingLines).toSet())
-                mftOverlay.items = displayMft
-                mftOverlay.onItemClick = { lean -> onMarkerClickState.value(lean) }
+                featuresOverlay.lines = lines
+                featuresOverlay.mft = displayMft
+                featuresOverlay.icons = displayMarkers
+                featuresOverlay.onItemClick = { lean -> onMarkerClickState.value(lean) }
                 applied.mft = displayMft
                 applied.markers = displayMarkers
                 applied.lines = lines
                 applied.iconsVersion = iconsVersion
-                if (mftOverlay !in view.overlays) {
-                    view.overlays.add(0, mftOverlay)
+                if (featuresOverlay !in view.overlays) {
+                    view.overlays.add(0, featuresOverlay)
                 }
                 if (debugBlinkOverlay !in view.overlays) {
                     view.overlays.add(debugBlinkOverlay)
-                }
-                lines.forEach { line ->
-                    val polyline = Polyline(view)
-                    polyline.setPoints(
-                        listOf(
-                            GeoPoint(line.lat1, line.lng1),
-                            GeoPoint(line.lat2, line.lng2),
-                        ),
-                    )
-                    polyline.outlinePaint.color = LinkLineColor
-                    polyline.outlinePaint.strokeWidth = LinkLineStrokeWidth
-                    polyline.infoWindow = null
-                    view.overlays.add(polyline)
-                }
-                displayMarkers.forEach { item ->
-                    val marker = Marker(view)
-                    marker.position = GeoPoint(item.lat, item.lng)
-                    marker.title = item.name.ifBlank { item.layer.ifBlank { item.type } }
-                    marker.snippet = buildString {
-                        append(item.type)
-                        if (item.layer.isNotBlank()) {
-                            if (isNotEmpty()) append(" · ")
-                            append(item.layer)
-                        }
-                    }
-                    marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
-                    marker.isEnabled = true
-                    marker.setInfoWindowAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_TOP)
-                    val iconUrl = item.resolvedIconUrl()
-                    val drawable = iconCache.drawableFor(iconUrl)
-                    if (drawable != null) {
-                        marker.icon = drawable.constantState?.newDrawable()?.mutate() ?: drawable
-                    } else if (iconUrl != null) {
-                        return@forEach
-                    }
-                    marker.relatedObject = item
-                    marker.setOnMarkerClickListener { clicked, map ->
-                        map.overlays
-                            .filterIsInstance<Marker>()
-                            .forEach { it.closeInfoWindow() }
-                        val lean = clicked.relatedObject as? LeanMapMarker
-                        if (lean != null) {
-                            onMarkerClickState.value(lean)
-                        } else {
-                            clicked.showInfoWindow()
-                        }
-                        true
-                    }
-                    view.overlays.add(marker)
                 }
                 view.invalidate()
             }
