@@ -37,6 +37,14 @@ fun rememberViewportWidthDp(): Dp {
     return with(density) { containerSize.width.toDp() }
 }
 
+/** Viewport height in dp (для portrait/landscape auth). */
+@Composable
+fun rememberViewportHeightDp(): Dp {
+    val containerSize = LocalWindowInfo.current.containerSize
+    val density = LocalDensity.current
+    return with(density) { containerSize.height.toDp() }
+}
+
 /**
  * Web [MainNavigation]: постоянный сайдбар при `min-width: 1280px`.
  * Не путать с Material [WindowWidth.Expanded] (≥840dp).
@@ -77,25 +85,55 @@ data class AuthFormLayoutMetrics(
     val primaryButtonFullWidth: Boolean,
     val titleSp: Int,
     val contentGap: Dp,
+    /** Горизонтальные поля вокруг формы (поверх scaffold). */
+    val horizontalPadding: Dp,
+    /** Вертикальные поля; при [centerVertically] — минимум вокруг центрированного блока. */
+    val verticalPadding: Dp,
+    /**
+     * Центрировать форму по вертикали в доступной высоте
+     * (планшет / высокий phone; при коротком landscape — тоже, со scroll).
+     */
+    val centerVertically: Boolean,
 )
 
 @Composable
 fun rememberAuthFormLayoutMetrics(maxContentWidth: Dp): AuthFormLayoutMetrics {
     val viewportWidth = rememberViewportWidthDp()
-    return remember(viewportWidth, maxContentWidth) {
+    val viewportHeight = rememberViewportHeightDp()
+    return remember(viewportWidth, viewportHeight, maxContentWidth) {
+        val wide = viewportWidth >= WebViewportBp.mlg
+        val shortHeight = viewportHeight < 560.dp
         AuthFormLayoutMetrics(
-            innerWidth = if (viewportWidth >= WebViewportBp.tsm) {
+            // ≥768: колонка ≤400; иначе на всю доступную ширину (phone).
+            innerWidth = if (wide) {
                 minOf(AuthFormTokens.innerFormWidth, maxContentWidth)
             } else {
                 maxContentWidth
             },
-            primaryButtonFullWidth = viewportWidth < WebViewportBp.msm,
-            titleSp = if (viewportWidth >= WebViewportBp.tsm) 26 else 20,
-            contentGap = if (viewportWidth >= WebViewportBp.tsm) {
-                AuthFormTokens.contentGapWide
-            } else {
-                AuthFormTokens.contentGap
+            primaryButtonFullWidth = true,
+            titleSp = when {
+                viewportWidth >= WebViewportBp.tsm -> 26
+                wide -> 22
+                else -> 20
             },
+            contentGap = when {
+                shortHeight -> 16.dp
+                wide -> AuthFormTokens.contentGapWide
+                else -> AuthFormTokens.contentGap
+            },
+            horizontalPadding = when {
+                viewportWidth >= WebViewportBp.tsm -> 32.dp
+                wide -> 24.dp
+                else -> 16.dp
+            },
+            verticalPadding = when {
+                shortHeight -> 12.dp
+                wide -> 24.dp
+                else -> 16.dp
+            },
+            // Всегда оптический центр: на высоком экране — середина; на коротком —
+            // Column.minHeight=viewport + Center + scroll (клавиатура / landscape).
+            centerVertically = true,
         )
     }
 }

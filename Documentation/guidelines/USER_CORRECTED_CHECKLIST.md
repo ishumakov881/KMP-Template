@@ -53,7 +53,8 @@
 ## U. UI / UX
 
 - [ ] U1 — Responsive layout-токены из ldsonline (`:kmp:ui`: `WindowWidth`, `WebViewportBp`, auth metrics); визуал приложения и login — **Cupertino** (не Material UI с референса). Форма авторизации масштабируется phone/tablet portrait/landscape.
-  Verify: `LoginScreen` на Cupertino (`CupertinoSection`/`CupertinoButton`/`CupertinoText`); `:kmp:udf` ErrorView/loading без Material3; на ≥768 form+aside row, &lt;480 кнопка full width.
+  Verify: `LoginScreen` на Cupertino (`CupertinoSection`/`CupertinoButton`/`CupertinoText`); `:kmp:udf` ErrorView/loading без Material3; колонка `innerWidth` (≤400dp с ≥768), кнопка на ширину колонки; вертикаль — оптический центр (U32).
+  Изм. 2026-11-26: было «&lt;480 кнопка full width / ≥480 min 200dp влево» → колонка ≤400 + кнопка fill + vertical center (U31/U32).
 - [ ] U2 — Не копировать Material/Compose UI-скин с ldsonline; источник виджетов — Cupertino в `:app:shared` / `:kmp:udf`.
   Verify: в login и udf UI нет `material3` Button/TextField/OutlinedButton; `app/shared` не тянет `compose-material3` ради экранов.
 - [x] U3 — Веб-«Профиль» NOS (= тема) не дублировать отдельным bottom-tab: настройки уже в тулбаре. В `SettingsScreen` активны блоки «Оформление» и «О приложении»; демо-«Уведомления» закомментированы (не удалены). Выход — см. U19.
@@ -152,6 +153,11 @@
   Изм. 2026-11-23: после замера U28 (APPLY ~88µs, scroll ~0.26% jank) — **карта-perf считать достаточным** для продукта; опционально позже: zoom-LOD/иконки, инкремент A, bbox API. Перед релизом обязательно снять U25/U27.
 - [x] U30 — Клики: единый hit в `NosMapFeaturesOverlay` — ближайшая точка среди icons+mft в hitSlop; tie → icon (рисуется выше); miss → false (pan); линии не участвуют в hit. Не `true` на любой тап по карте.
   Verify: код `NosMapFeaturesOverlay.onSingleTapConfirmed`; на устройстве тап по иконке/муфте → попап, пустое место → pan (ручная проверка пользователем желательна).
+- [x] U31 — Login на планшете (≥768dp): форма **центрирована**, колонка ≤ `AuthFormTokens.innerFormWidth` (400dp); кнопка «Вход» на **всю ширину колонки** (не 200dp слева у края экрана). Phone &lt;768 — колонка на доступную ширину, кнопка тоже full width колонки.
+  Verify: `LoginScreen` — `horizontalAlignment = CenterHorizontally` + `widthIn(max = metrics.innerWidth)`; `rememberAuthFormLayoutMetrics.innerWidth` с ≥`WebViewportBp.mlg`; на 25099RP13G (portrait 1600×2560@320) uiautomator: колонка ~x400–1200 (по центру), текст «Вход» ~x762–839.
+  Изм. 2026-11-26: вертикаль — см. U32 (не top-stick).
+- [x] U32 — Login: **оптический центр** по вертикали на всех макетах (phone/tablet × portrait/landscape), не «прибито к верху». `BoxWithConstraints` + `heightIn(min=maxHeight)` + `Arrangement.Center` + `verticalScroll` + `imePadding`. Токены в `rememberAuthFormLayoutMetrics`: `innerWidth` / `titleSp` / `contentGap` / paddings по ширине и короткой высоте (&lt;560dp). Debug-строка «Широкий layout…» убрана.
+  Verify: `LoginScreen.kt` + `WindowLayout.kt` AuthFormLayoutMetrics; 25099RP13G port — блок формы ~41–60%H; land — ~36–66%H; phone — колонка full width, тоже по центру.
 
 
 ## D. Данные

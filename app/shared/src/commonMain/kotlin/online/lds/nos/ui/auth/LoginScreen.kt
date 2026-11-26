@@ -5,23 +5,26 @@ package online.lds.nos.ui.auth
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ScaffoldDefaults
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalAutofillManager
 import androidx.compose.ui.unit.dp
@@ -40,9 +43,7 @@ import io.github.alexzhirkevich.cupertino.section.CupertinoSectionDefaults
 import io.github.alexzhirkevich.cupertino.section.SectionItem
 import io.github.alexzhirkevich.cupertino.section.sectionTitle
 import io.github.alexzhirkevich.cupertino.theme.CupertinoTheme
-import net.lds.online.ui.auth.rememberAuthScreenLayout
 import net.lds.online.ui.base.BaseScreenLayout
-import net.lds.online.ui.dashboard.AuthFormTokens
 import net.lds.online.ui.dashboard.authContentMaxWidth
 import net.lds.online.ui.dashboard.rememberAuthFormLayoutMetrics
 import net.lds.online.ui.dashboard.rememberWindowWidth
@@ -54,7 +55,6 @@ fun LoginScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val windowWidth = rememberWindowWidth()
-    val authLayout = rememberAuthScreenLayout()
     val metrics = rememberAuthFormLayoutMetrics(windowWidth.authContentMaxWidth)
 
     // Autofill: не LazyColumn/section item — Password Manager часто не видит форму в lazy.
@@ -86,86 +86,91 @@ fun LoginScreen(
                 modifier = Modifier.fillMaxSize(),
                 color = CupertinoTheme.colorScheme.systemGroupedBackground,
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(rememberScrollState())
-                        .padding(
-                            horizontal = authLayout.horizontalPadding,
-                            vertical = authLayout.verticalPadding,
-                        ),
-                ){
-                    CupertinoText(
-                        text = "Вход в систему",
-                        style = CupertinoTheme.typography.body,
-                        modifier = Modifier.padding(bottom = metrics.contentGap),
-                    )
-
-                    CupertinoSection(
-                        title = { CupertinoText("Учётная запись".sectionTitle()) },
-                        caption = {
-                            CupertinoText("Сессия как в веб-NOS: cookie PHPSESSID")
-                        },
-                    ) {
-                        SectionItem {
-                            val loginInteraction = remember { MutableInteractionSource() }
-                            val loginFocused by loginInteraction.collectIsFocusedAsState()
-                            val onLoginChange by rememberUpdatedState { v: String ->
-                                viewModel.onEvent(LoginEvent.LoginChanged(v))
-                            }
-                            CupertinoLoginField(
-                                value = data.login,
-                                onValueChange = { onLoginChange(it) },
-                                interactionSource = loginInteraction,
-                                trailingIcon = {
-                                    CupertinoSectionDefaults.TextFieldClearButton(
-                                        visible = loginFocused && data.login.isNotEmpty(),
-                                        onClick = { onLoginChange("") },
-                                    )
-                                },
-                            )
-                        }
-                        SectionItem {
-                            CupertinoPasswordField(
-                                value = data.password,
-                                onValueChange = { viewModel.onEvent(LoginEvent.PasswordChanged(it)) },
-                                keyboardActions = KeyboardActions(onDone = { submit() }),
-                            )
-                        }
-                    }
-
-                    val buttonModifier = if (metrics.primaryButtonFullWidth) {
-                        Modifier.fillMaxWidth()
-                    } else {
-                        Modifier.widthIn(min = AuthFormTokens.primaryButtonWidth)
-                    }
-                    Row(
+                // minHeight = viewport → Arrangement.Center; при клавиатуре / short land — scroll.
+                BoxWithConstraints(modifier = Modifier.fillMaxSize().imePadding()) {
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(CupertinoSectionDefaults.PaddingValues),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            .heightIn(min = maxHeight)
+                            .verticalScroll(rememberScrollState())
+                            .padding(
+                                horizontal = metrics.horizontalPadding,
+                                vertical = metrics.verticalPadding,
+                            ),
+                        verticalArrangement = if (metrics.centerVertically) {
+                            Arrangement.Center
+                        } else {
+                            Arrangement.Top
+                        },
+                        horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
-                        CupertinoButton(
-                            onClick = submit,
-                            enabled = !data.isSubmitting,
-                            modifier = buttonModifier,
+                        Column(
+                            modifier = Modifier
+                                .widthIn(max = metrics.innerWidth)
+                                .fillMaxWidth(),
                         ) {
-                            if (data.isSubmitting) {
-                                CupertinoActivityIndicator()
-                            } else {
-                                CupertinoText("Вход")
+                            CupertinoText(
+                                text = "Вход в систему",
+                                style = CupertinoTheme.typography.title2.copy(
+                                    fontSize = (metrics.titleSp - 2).coerceAtLeast(18).sp,
+                                ),
+                                modifier = Modifier.padding(bottom = metrics.contentGap),
+                            )
+
+                            CupertinoSection(
+                                title = { CupertinoText("Учётная запись".sectionTitle()) },
+                                caption = {
+                                    CupertinoText("Сессия как в веб-NOS: cookie PHPSESSID")
+                                },
+                            ) {
+                                SectionItem {
+                                    val loginInteraction = remember { MutableInteractionSource() }
+                                    val loginFocused by loginInteraction.collectIsFocusedAsState()
+                                    val onLoginChange by rememberUpdatedState { v: String ->
+                                        viewModel.onEvent(LoginEvent.LoginChanged(v))
+                                    }
+                                    CupertinoLoginField(
+                                        value = data.login,
+                                        onValueChange = { onLoginChange(it) },
+                                        interactionSource = loginInteraction,
+                                        trailingIcon = {
+                                            CupertinoSectionDefaults.TextFieldClearButton(
+                                                visible = loginFocused && data.login.isNotEmpty(),
+                                                onClick = { onLoginChange("") },
+                                            )
+                                        },
+                                    )
+                                }
+                                SectionItem {
+                                    CupertinoPasswordField(
+                                        value = data.password,
+                                        onValueChange = {
+                                            viewModel.onEvent(LoginEvent.PasswordChanged(it))
+                                        },
+                                        keyboardActions = KeyboardActions(onDone = { submit() }),
+                                    )
+                                }
+                            }
+
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(CupertinoSectionDefaults.PaddingValues),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            ) {
+                                CupertinoButton(
+                                    onClick = submit,
+                                    enabled = !data.isSubmitting,
+                                    modifier = Modifier.fillMaxWidth(),
+                                ) {
+                                    if (data.isSubmitting) {
+                                        CupertinoActivityIndicator()
+                                    } else {
+                                        CupertinoText("Вход")
+                                    }
+                                }
                             }
                         }
-                    }
-
-                    if (authLayout.formAndAsideInRow) {
-                        CupertinoText(
-                            text = "Широкий layout (≥768): phone/tablet landscape",
-                            style = CupertinoTheme.typography.footnote,
-                            modifier = Modifier
-                                .widthIn(max = windowWidth.authContentMaxWidth)
-                                .padding(top = 8.dp),
-                        )
                     }
                 }
             }
