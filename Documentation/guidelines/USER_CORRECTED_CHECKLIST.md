@@ -32,6 +32,7 @@
   Изм. 2026-11-12: третье состояние Unreachable — offline не разлогинивает.
 - [ ] P4 — Первый продуктовый экран NOS на compose-cupertino (кит из `Начальный промпт.md`): форма авторизации только API Cupertino (section/textField/button/dialog/activityIndicator), без Material.
   Verify: `LoginScreen.kt` использует Cupertino + `ScreenList`; нет material3 виджетов на экране входа; сборка `:app:shared:compileKotlinJvm` ок; on-device smoke login UI.
+  Изм. 2026-11-26: в `Начальный промпт.md` добавлен блок **«ТРЕБОВАНИЯ NOS»** (UI-only Cupertino, login/autofill, адаптив U31/U32, empty stubs U33, shell/insets, карта-исключение) — см. X2.
 
 ## A. Архитектура
 
@@ -75,6 +76,7 @@
   Изм. 2026-11-10: пустые mrtg — Coil `ImageRequest.listener` пишет в logcat `NosMrtg START|OK|ERR|CANCEL` + URL/source/throwable (диагностика, не теория).
   Изм. 2026-11-11: не подменять mrtg текстом «График временно недоступен» — как веб, всегда грузить `/inc/other/rrd/{ip}/nolegend.png` (пустой трафик = пустой RRD PNG). `MainActivity` → `httpClient` в `App` (Coil+Ktor). Text-stub запрещён.
   Изм. 2026-11-11: empty «Нет свичей на узле» по центру экрана (`fillParentMaxSize` + `Alignment.Center` в Lazy item), не прилипший к верху.
+  Изм. 2026-11-26: все empty-list → `CupertinoEmptyListStub` (U33), в т.ч. «Нет графиков».
   Изм. 2026-11-11: mrtg — не залипать на закэшированном Coil HTTP 404 (`diskCachePolicy WRITE_ONLY` + clear memory/disk при создании ImageLoader); URL как веб `/inc/other/rrd/{ip}/nolegend.png` (пустой RRD PNG).
   Изм. 2026-11-12: уточнение text-stub — заглушка «График временно недоступен!» показывается **только** при реальной ошибке загрузки (файла нет, HTTP 404), как браузер рисует `<img alt>`. Пустой трафик = валидный пустой PNG (не 404) → грузится как есть, без заглушки. Общий хелпер `ui/sites/MrtgGraphImage.kt` (`SubcomposeAsyncImage` + `error`-слот), используется в `SiteDetailScreen` и `SwPicScreen`.
   Verify: открыть узел с несуществующим графиком → под строкой «График временно недоступен!» (не битая/пустая картинка); узел с реальным (в т.ч. пустым) графиком → PNG грузится.
@@ -158,6 +160,8 @@
   Изм. 2026-11-26: вертикаль — см. U32 (не top-stick).
 - [x] U32 — Login: **оптический центр** по вертикали на всех макетах (phone/tablet × portrait/landscape), не «прибито к верху». `BoxWithConstraints` + `heightIn(min=maxHeight)` + `Arrangement.Center` + `verticalScroll` + `imePadding`. Токены в `rememberAuthFormLayoutMetrics`: `innerWidth` / `titleSp` / `contentGap` / paddings по ширине и короткой высоте (&lt;560dp). Debug-строка «Широкий layout…» убрана.
   Verify: `LoginScreen.kt` + `WindowLayout.kt` AuthFormLayoutMetrics; 25099RP13G port — блок формы ~41–60%H; land — ~36–66%H; phone — колонка full width, тоже по центру.
+- [x] U33 — Заглушки пустого списка в `ScreenList`/`LazyColumn`: общий `CupertinoEmptyListStub` (`LazyItemScope` + `fillParentMaxSize` + `Alignment.Center`), иконка+текст по **центру viewport**, не top-padded Column. Экраны: Switches / Sites / SiteDetail / SwPic («Нет графиков») / Snmp / Requests. Заголовок над пустым (pic title) — слот `above` внутри stub. Правило также в `Начальный промпт.md` (блок заглушек).
+  Verify: код `ui/CupertinoEmptyListStub.kt` + call sites; нет локальных `EmptyGraphsState`/`EmptySwitchesState`/`EmptySitesState`/`EmptyDevicesState`/`EmptyState`; пустой pic — «Нет графиков» по центру списка.
 
 
 ## D. Данные
@@ -194,3 +198,6 @@
 
 - [x] X1 — Учётные данные NOS (логин/пароль) не коммитить и не писать в документацию репозитория; для исследований использовать только локальную сессию.
   Verify: поиск по репо не находит пароль; в `Documentation/` только плейсхолдеры/`<username>`.
+- [x] X2 — Документ кита `Начальный промпт.md` содержит блок **ТРЕБОВАНИЯ NOS** с правилами продукта (Cupertino-only UI, login fields/autofill, адаптив формы, shell без BottomSheetScaffold, Desktop insets, empty-list stubs U33, ссылки на чеклист U1/U2/U12/U31–U33/B3/P4).
+  Verify: в файле есть секция после Desktop-нюансов; требования согласованы с чеклистом, не противоречат B3.
+  Изм. 2026-11-26: добавлен блок заглушек пустого списка (U33).

@@ -2,26 +2,22 @@
 
 package online.lds.nos.ui.sites
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import online.lds.nos.ui.CupertinoEmptyListStub
 import online.lds.nos.ui.ScreenList
 import online.lds.nos.ui.TitleWithSubtitle
 import io.github.alexzhirkevich.cupertino.CupertinoActivityIndicator
-import io.github.alexzhirkevich.cupertino.CupertinoIcon
 import io.github.alexzhirkevich.cupertino.CupertinoSearchTextField
 import io.github.alexzhirkevich.cupertino.CupertinoText
 import io.github.alexzhirkevich.cupertino.ExperimentalCupertinoApi
@@ -96,8 +92,9 @@ fun SitesScreen(
 
                 if (visible.isEmpty()) {
                     item {
-                        EmptySitesState(
-                            if (data.query.isBlank()) "Нет узлов" else "Ничего не найдено",
+                        CupertinoEmptyListStub(
+                            text = if (data.query.isBlank()) "Нет узлов" else "Ничего не найдено",
+                            icon = CupertinoIcons.Default.ListBulletIndent,
                         )
                     }
                 } else {
@@ -124,26 +121,3 @@ fun SitesScreen(
     }
 }
 
-@Composable
-private fun EmptySitesState(text: String) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 48.dp, horizontal = 16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        CupertinoIcon(
-            imageVector = CupertinoIcons.Default.ListBulletIndent,
-            contentDescription = null,
-            tint = CupertinoTheme.colorScheme.tertiaryLabel,
-            modifier = Modifier.size(48.dp),
-        )
-        CupertinoText(
-            text = text,
-            style = CupertinoTheme.typography.headline,
-            color = CupertinoTheme.colorScheme.secondaryLabel,
-            textAlign = TextAlign.Center,
-        )
-    }
-}

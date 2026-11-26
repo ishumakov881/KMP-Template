@@ -5,14 +5,11 @@ package online.lds.nos.ui.sites
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -25,9 +22,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import online.lds.nos.ui.CupertinoEmptyListStub
 import online.lds.nos.ui.ScreenList
 import io.github.alexzhirkevich.cupertino.CupertinoActivityIndicator
-import io.github.alexzhirkevich.cupertino.CupertinoIcon
 import io.github.alexzhirkevich.cupertino.CupertinoText
 import io.github.alexzhirkevich.cupertino.ExperimentalCupertinoApi
 import io.github.alexzhirkevich.cupertino.icons.CupertinoIcons
@@ -77,17 +74,6 @@ fun SwPicScreen(
             val graphs = data.page.graphs
             val refreshing = (state.contentState as? UiState.Success)?.isRefreshing == true
             ScreenList(padding) {
-                item {
-                    CupertinoText(
-                        text = data.page.title,
-                        style = CupertinoTheme.typography.title2,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(CupertinoSectionDefaults.PaddingValues),
-                        textAlign = TextAlign.Center,
-                    )
-                }
-
                 if (refreshing) {
                     item {
                         Box(
@@ -100,8 +86,33 @@ fun SwPicScreen(
                 }
 
                 if (graphs.isEmpty()) {
-                    item { EmptyGraphsState() }
+                    item {
+                        CupertinoEmptyListStub(
+                            text = "Нет графиков",
+                            icon = CupertinoIcons.Default.ServerRack,
+                            above = {
+                                CupertinoText(
+                                    text = data.page.title,
+                                    style = CupertinoTheme.typography.title2,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(bottom = 16.dp),
+                                    textAlign = TextAlign.Center,
+                                )
+                            },
+                        )
+                    }
                 } else {
+                    item {
+                        CupertinoText(
+                            text = data.page.title,
+                            style = CupertinoTheme.typography.title2,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(CupertinoSectionDefaults.PaddingValues),
+                            textAlign = TextAlign.Center,
+                        )
+                    }
                     items(
                         items = graphs,
                         key = { it.imageUrl },
@@ -150,26 +161,3 @@ private fun GraphCard(
     )
 }
 
-@Composable
-private fun EmptyGraphsState() {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 48.dp, horizontal = 16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        CupertinoIcon(
-            imageVector = CupertinoIcons.Default.ServerRack,
-            contentDescription = null,
-            tint = CupertinoTheme.colorScheme.tertiaryLabel,
-            modifier = Modifier.size(48.dp),
-        )
-        CupertinoText(
-            text = "Нет графиков",
-            style = CupertinoTheme.typography.headline,
-            color = CupertinoTheme.colorScheme.secondaryLabel,
-            textAlign = TextAlign.Center,
-        )
-    }
-}

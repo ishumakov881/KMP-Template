@@ -26,11 +26,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import coil3.compose.LocalPlatformContext
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
+import online.lds.nos.ui.CupertinoEmptyListStub
 import online.lds.nos.ui.ScreenList
 import online.lds.nos.ui.TitleWithSubtitle
 import io.github.alexzhirkevich.cupertino.CupertinoActivityIndicator
@@ -104,12 +104,10 @@ fun SiteDetailScreen(
 
                 if (devices.isEmpty()) {
                     item {
-                        Box(
-                            Modifier.fillParentMaxSize(),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            EmptyDevicesState()
-                        }
+                        CupertinoEmptyListStub(
+                            text = "Нет свичей на узле",
+                            icon = CupertinoIcons.Default.ServerRack,
+                        )
                     }
                 } else {
                     section(
@@ -222,26 +220,3 @@ private fun DeviceRow(
 /** Intrinsic size of NOS `/inc/other/rrd/{ip}/nolegend.png`. */
 private const val MrtgThumbAspectRatio = 647f / 182f
 
-@Composable
-private fun EmptyDevicesState() {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        CupertinoIcon(
-            imageVector = CupertinoIcons.Default.ServerRack,
-            contentDescription = null,
-            tint = CupertinoTheme.colorScheme.tertiaryLabel,
-            modifier = Modifier.size(48.dp),
-        )
-        CupertinoText(
-            text = "Нет свичей на узле",
-            style = CupertinoTheme.typography.headline,
-            color = CupertinoTheme.colorScheme.secondaryLabel,
-            textAlign = TextAlign.Center,
-        )
-    }
-}

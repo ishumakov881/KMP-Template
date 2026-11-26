@@ -21,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import online.lds.nos.ui.CupertinoEmptyListStub
 import online.lds.nos.ui.ScreenList
 import online.lds.nos.ui.TitleWithSubtitle
 import io.github.alexzhirkevich.cupertino.CupertinoActivityIndicator
@@ -117,26 +118,10 @@ fun SnmpScreen(
 
                 if (page.ports.isEmpty()) {
                     item {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 48.dp, horizontal = 16.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            CupertinoIcon(
-                                imageVector = CupertinoIcons.Default.ServerRack,
-                                contentDescription = null,
-                                tint = CupertinoTheme.colorScheme.tertiaryLabel,
-                                modifier = Modifier.size(48.dp),
-                            )
-                            CupertinoText(
-                                text = "Нет данных портов",
-                                style = CupertinoTheme.typography.headline,
-                                color = CupertinoTheme.colorScheme.secondaryLabel,
-                                textAlign = TextAlign.Center,
-                            )
-                        }
+                        CupertinoEmptyListStub(
+                            text = "Нет данных портов",
+                            icon = CupertinoIcons.Default.ServerRack,
+                        )
                     }
                 } else {
                     section(
